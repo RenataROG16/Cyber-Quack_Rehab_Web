@@ -28,14 +28,16 @@
   #nivelTexto{ font-size: 12.5px; text-align: center; margin: 6px 0 0; font-weight: 700; }
 
   #gameArea{ flex: 1; min-width: 0; min-height: 0; position: relative; overflow: hidden; background: #d9f0e3; }
-  .landscape{ position: absolute; inset: 0; overflow: hidden; transition: transform 1.25s cubic-bezier(.68,0,.32,1); }
-  #sky{ position: absolute; inset: 0; background: #a9ddf3 url("assets/fondo.jpg") center bottom / cover no-repeat; }
+  .landscape{ position: absolute; inset: 0; overflow: hidden; }
+  /* El mundo se desliza con la cámara; adentro van el fondo, las vallas y el pato */
+  #mundo{ position: absolute; left: 0; top: 0; bottom: 0; z-index: 1; will-change: transform; }
+  #fondoMundo{ position: absolute; inset: 0; overflow: hidden; }
+  .tile{ position: absolute; top: 0; height: 100%; background-size: 100% 100%; background-repeat: no-repeat; }
+  .tile.espejo{ transform: scaleX(-1); }
+  #fundido{ position: absolute; inset: 0; background: #0e2f3a; opacity: 0; pointer-events: none; z-index: 19; transition: opacity .45s; }
   /* Tinte de atardecer: sube de nivel en nivel y llega al máximo en el último */
   #tinte{ position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 1s;
     background: linear-gradient(180deg, rgba(98,78,120,.9) 0%, rgba(208,128,116,.75) 48%, rgba(245,187,120,.6) 100%); }
-  #sky::after{ content: ""; position: absolute; inset: 0; opacity: 0; pointer-events: none; background: repeating-linear-gradient(168deg, transparent 0 28px, rgba(255,255,255,0.25) 29px 31px, transparent 32px 68px); transition: opacity .5s; }
-  #gameArea.final-level #sky::after{ opacity: .48; animation: finalWind 1.8s linear infinite; }
-  @keyframes finalWind{ to{ background-position: 0 100px; } }
   .mountain{ position: absolute; bottom: 90px; width: 0; height: 0; border-style: solid; opacity: 0.55; }
   .mountain.m1{ left: 5%; border-width: 0 90px 140px 90px; border-color: transparent transparent #6c93a8 transparent; }
   .mountain.m2{ left: 28%; border-width: 0 70px 100px 70px; border-color: transparent transparent #7fa3b6 transparent; opacity: 0.4; }
@@ -49,7 +51,8 @@
   #gameArea.final-level #ground::before{ content: ""; position: absolute; inset: -24px 0 auto; height: 24px; background: radial-gradient(ellipse at 18% 100%, rgba(244,190,126,.38), transparent 60%), radial-gradient(ellipse at 75% 100%, rgba(244,190,126,.32), transparent 56%); }
 
   /* El salto lo anima JavaScript cuadro por cuadro (animarSalto): parábola + estela + polvo */
-  #duckTrack{ position: absolute; bottom: var(--suelo, 96px); left: 8%; font-size: 60px; z-index: 5; }
+  #duckTrack{ position: absolute; bottom: var(--suelo, 96px); left: 0; font-size: 60px; z-index: 5; }
+  #duckTrack.flotando .duck-shadow{ display: none; }
   #duckTrack .duck-body{ position: relative; z-index: 1; transform-origin: 50% 100%; will-change: transform; }
   #duckTrack .duck-shadow{ position: absolute; left: 50%; bottom: -5px; width: 70%; height: 10px; margin-left: -35%; border-radius: 50%; background: rgba(30,50,25,.32); transform-origin: 50% 50%; }
   /* Estela: puntitos que dibujan el arco del salto y se desvanecen */
@@ -76,8 +79,9 @@
   #puddle{ position: absolute; bottom: 78px; left: 70%; width: 130px; height: 16px; background: #6fb6d9; border-radius: 50%; opacity: 0.65; }
   #gameArea.final-level #puddle{ display: none; }
 
-  #progressBar{ position: absolute; bottom: var(--suelo, 96px); left: 8%; right: 18%; height: 3px; background: rgba(0,0,0,0.15); }
-  #progressFill{ height: 100%; background: var(--duck-yellow); width: 0%; transition: width 0.4s; }
+  #camino{ position: absolute; bottom: var(--suelo, 96px); left: 0; height: 3px; background: rgba(0,0,0,0.15); }
+  #progressFill{ height: 100%; background: var(--duck-yellow); width: 0; }
+  #vallas{ position: absolute; inset: 0; pointer-events: none; z-index: 4; }
 
   #zoneIndicator{ position: absolute; z-index: 8; top: 24px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.45); color: white; padding: 12px 28px; border-radius: 999px; font-size: 17px; font-weight: 700; font-family: var(--display); text-align: center; max-width: 80%; }
   #levelBadge{ position: absolute; top: 24px; right: 24px; z-index: 8; background: var(--duck-yellow); color: #1a1200; padding: 12px 22px; border-radius: 999px; font-weight: 800; font-family: var(--display); font-size: 17px; transition: background .3s, box-shadow .3s; }
@@ -172,14 +176,19 @@
     #btnCerrarSesion, .sound-toggle{ grid-column: span 1; }
     #gameArea.final-level #levelBadge{ font-size: 12px; }
   }
-  /* --- Valla (obstáculo): cerca de madera como la del paisaje; su altura es el % de contracción que exige el nivel --- */
-  #valla{ position: absolute; z-index: 4; bottom: var(--suelo, 96px); left: 0; width: 72px; height: 40px; display: none; pointer-events: none; will-change: transform, opacity; transform-origin: 50% 100%; }
-  #valla .v-poste{ position: absolute; bottom: 0; width: 10px; height: 100%; background: #a8774f; border-radius: 1px; }
-  #valla .p1{ left: 0; } #valla .p2{ left: calc(50% - 5px); background: #7d5535; } #valla .p3{ right: 0; }
-  #valla .v-riel{ position: absolute; left: -6px; right: -6px; height: 10%; min-height: 5px; max-height: 12px; background: #b98859; border-radius: 1px; box-shadow: 0 1px 0 rgba(70,40,20,.25); }
-  #valla .r1{ top: 22%; } #valla .r2{ top: 58%; }
-  #valla.cae{ animation: vallaCae .6s ease-in forwards; }
-  @keyframes vallaCae{ 0%{ transform: translate3d(var(--vx), 0, 0) rotate(0); opacity: 1; } 100%{ transform: translate3d(calc(var(--vx) + 46px), 14px, 0) rotate(68deg); opacity: 0; } }
+  /* --- Valla (obstáculo): cerca de madera como la del paisaje, fija en el camino; su altura es el % de contracción que exige el nivel --- */
+  .valla{ position: absolute; bottom: var(--suelo, 96px); width: 72px; height: 40px; transform-origin: 50% 100%; }
+  .valla .v-poste{ position: absolute; bottom: 0; width: 10px; height: 100%; background: #a8774f; border-radius: 1px; }
+  .valla .p1{ left: 0; } .valla .p2{ left: calc(50% - 5px); background: #7d5535; } .valla .p3{ right: 0; }
+  .valla .v-riel{ position: absolute; left: -6px; right: -6px; height: 10%; min-height: 5px; max-height: 12px; background: #b98859; border-radius: 1px; box-shadow: 0 1px 0 rgba(70,40,20,.25); }
+  .valla .r1{ top: 22%; } .valla .r2{ top: 58%; }
+  .valla.tiembla{ animation: vallaTiembla .5s ease-in-out; }
+  @keyframes vallaTiembla{ 0%, 100%{ transform: rotate(0); } 25%{ transform: rotate(5deg); } 60%{ transform: rotate(-3.5deg); } }
+  /* Chapuzón al llegar al lago */
+  .gota{ position: absolute; z-index: 6; width: 7px; height: 7px; margin-left: -3px; border-radius: 50%; background: #8fd3f5; pointer-events: none; animation: gotaVuela .75s ease-out forwards; }
+  @keyframes gotaVuela{ 0%{ opacity: 1; transform: translate(0, 0); } 60%{ opacity: 1; } 100%{ opacity: 0; transform: translate(var(--dx), calc(var(--dy) * -1 + 30px)); } }
+  .onda{ position: absolute; z-index: 3; width: 20px; height: 8px; margin-left: -10px; border-radius: 50%; border: 3px solid rgba(255,255,255,.7); pointer-events: none; animation: ondaSale 1s ease-out forwards; }
+  @keyframes ondaSale{ from{ opacity: .9; transform: scale(1); } to{ opacity: 0; transform: scale(7, 3); } }
 
   /* --- Guía en el cielo: qué hacer y cuándo --- */
   #guia{ position: absolute; z-index: 9; top: 16px; left: 50%; transform: translateX(-50%); display: none; align-items: center; gap: 14px;
@@ -236,22 +245,11 @@
 
   <div id="gameArea">
     <div class="landscape" id="landscape">
-      <div id="sky"></div>
-      <div id="tinte"></div>
-    </div>
-
-    <div id="levelBadge">Nivel 1</div>
-    <div id="zoneIndicator">Esperando a tu fisioterapeuta...</div>
-
-    <div id="progressBar"><div id="progressFill"></div></div>
-    <div id="valla" aria-hidden="true"><i class="v-poste p1"></i><i class="v-poste p2"></i><i class="v-poste p3"></i><i class="v-riel r1"></i><i class="v-riel r2"></i></div>
-    <div id="guia" role="timer" aria-live="polite" data-estado="relaja">
-      <div class="g-ring">
-        <svg viewBox="0 0 120 120" aria-hidden="true"><circle class="g-fondo" cx="60" cy="60" r="52"></circle><circle class="g-arco" cx="60" cy="60" r="52" pathLength="100"></circle></svg>
-        <span class="g-num">3</span>
-      </div>
-      <span class="g-txt">RELAJA</span>
-    </div>
+      <div id="mundo">
+        <div id="fondoMundo"></div>
+        <div id="tinte"></div>
+        <div id="camino"><div id="progressFill"></div></div>
+        <div id="vallas"></div>
     <div id="duckTrack" class="duck-visual" data-pose="rest">
       <div class="duck-shadow"></div>
       <div class="duck-body">
@@ -260,7 +258,20 @@
         <span class="duck-fallback"><span class="duck-combo"><span class="cowboy-hat"><span class="crown"></span><span class="brim"></span></span>🦆</span></span>
       </div>
     </div>
+      </div>
+    </div>
+    <div id="fundido"></div>
 
+    <div id="levelBadge">Nivel 1</div>
+    <div id="zoneIndicator">Esperando a tu fisioterapeuta...</div>
+
+    <div id="guia" role="timer" aria-live="polite" data-estado="relaja">
+      <div class="g-ring">
+        <svg viewBox="0 0 120 120" aria-hidden="true"><circle class="g-fondo" cx="60" cy="60" r="52"></circle><circle class="g-arco" cx="60" cy="60" r="52" pathLength="100"></circle></svg>
+        <span class="g-num">3</span>
+      </div>
+      <span class="g-txt">RELAJA</span>
+    </div>
     <div id="waitOverlay">
       <h2>⏳ Esperando a tu fisioterapeuta</h2>
       <p>Tu fisioterapeuta va a calibrarte y darle inicio al juego.</p>
@@ -335,28 +346,7 @@
   let inicioContraccionTs = 0, picoEnvolventePct = 0;
   let ultimaContraccionMs = 0;
 
-  // El fondo (assets/fondo.jpg) mide 1203 × 768. El pato y las vallas pisan a 96 px del borde de abajo en esa imagen,
-  // y el estanque empieza a 796 px a la izquierda. Con cualquier tamaño de pantalla se recalcula dónde queda el piso.
-  const FONDO = { w: 1203, h: 768, suelo: 96, estanque: 796 };
-  const duckStartLeft = 8;
-  let duckEndLeft = 46;                 // % donde termina el camino del pato en cada nivel (se ajusta para no llegar al estanque)
-  let sueloPx = 96, limitePastoPx = 800;
-  function ajustarEscena(){
-    const area = document.getElementById('gameArea'), duck = document.getElementById('duckTrack');
-    const W = area.clientWidth, H = area.clientHeight;
-    if (!W || !H) return;
-    const escala = Math.max(W / FONDO.w, H / FONDO.h);               // la imagen se ajusta como "cover", pegada abajo y centrada
-    const desfase = (FONDO.w * escala - W) / 2;
-    sueloPx = Math.round(FONDO.suelo * escala);
-    limitePastoPx = FONDO.estanque * escala - desfase;
-    area.style.setProperty('--suelo', sueloPx + 'px');
-    // el pato termina cada nivel con la valla todavía sobre el pasto, antes del estanque
-    const mitadPato = (duck.offsetWidth || 100) / 2;
-    const finPx = limitePastoPx - 36 - 24 - 110 - mitadPato;
-    duckEndLeft = Math.max(duckStartLeft + 22, Math.min(60, (finPx / W) * 100));
-    vallaGeo = null;
-  }
-  window.addEventListener('resize', ajustarEscena);
+
   let audioContext = null, sonidoActivado = false;
 
   // ============================================================
@@ -518,6 +508,7 @@
     const { data } = await supabaseClient.from('game_config').select('*').eq('patient_id', user.id).maybeSingle();
     config = data || {};
     calcularMaxPuntos(); pintarPuntaje();
+    ajustarEscena();                          // ya con la configuración: se arma el camino del nivel 1
     actualizarAmbienteNivel();
     if (!config.total_levels){
       document.getElementById('debugText').textContent = 'Falta tu configuración de juego (game_config). Avisa a tu fisioterapeuta.';
@@ -705,6 +696,7 @@
   function iniciarMuestreo(){
     estadoContraccion = 'reposo';
     intentoActual = null;
+    if (config && config.jumps_per_level && nivelConstruido !== nivelActual) construirNivel();
     if (!config || !config.mvc_mv || juegoTerminado) return;
     iniciarFaseRelaja();            // cada nivel (y cada reanudación) empieza con una relajación y una valla nueva
   }
@@ -720,6 +712,7 @@
     const { data: fresca } = await supabaseClient.from('game_config').select('*').eq('patient_id', currentUser.id).maybeSingle();
     if (fresca) config = fresca;
     calcularMaxPuntos(); pintarPuntaje();
+    construirNivel();                         // el fisio pudo cambiar niveles o saltos: se arma el camino con lo de ahora
 
     if (!config.mvc_mv){
       document.getElementById('debugText').textContent = 'Aún no estás calibrado: tu fisioterapeuta debe calibrarte primero.';
@@ -732,6 +725,7 @@
     document.getElementById('waitOverlay').style.display = 'none';
     document.getElementById('statusText').textContent = '¡Jugando!';
     document.getElementById('zoneIndicator').textContent = 'Esperando contracción...';
+    actualizarMusica();
     tiempoInicio = Date.now();
     iniciarTemporizador();
     iniciarMuestreo();
@@ -747,12 +741,14 @@
     document.getElementById('statusText').textContent = 'Pausado por tu fisioterapeuta';
     document.getElementById('zoneIndicator').textContent = 'Pausado';
     actualizarGuia(true);
+    actualizarMusica();
     enviarEstadoSesion();
   }
 
   function reanudarLocal(){
     if (!enPausa) return;
     enPausa = false;
+    actualizarMusica();
     envolvente = 0; estadoContraccion = 'reposo';
     tiempoInicio = Date.now() - (segundosAcumuladosAlPausar * 1000);
     iniciarTemporizador();
@@ -770,37 +766,29 @@
     return { minPct: config.threshold_min_pct, goodPct: esUltimo ? config.threshold_good_pct_final : config.threshold_good_pct };
   }
 
-  // Devuelve a qué posición (%) debe llegar el pato; el movimiento lo hace animarSalto
-  function actualizarPosicionPato(){
-    const frac = saltosBuenosNivel / config.jumps_per_level;
-    const left = duckStartLeft + (duckEndLeft - duckStartLeft) * frac;
-    document.getElementById('progressFill').style.width = (frac*100) + '%';
-    actualizarAmbienteNivel();
-    return left;
-  }
-
   // ------------------------------------------------------------
   //  SALTO: se anima cuadro por cuadro siguiendo una parábola.
   //  1) se agacha  2) despega estirado y vuela en arco (dejando estela)  3) aterriza aplastado
   //  fuerte = buen salto (avanza y sube alto); si no, un brinquito en su lugar.
   // ------------------------------------------------------------
   let saltoActual = null;
-  function animarSalto(fuerte, destinoLeft, alturaPx){
+  function animarSalto(fuerte, destinoWX, alturaPx){
     const duck = document.getElementById('duckTrack');
     const cuerpo = duck.querySelector('.duck-body'), sombra = duck.querySelector('.duck-shadow');
     const area = document.getElementById('gameArea');
     if (saltoActual) saltoActual.terminar();             // si aún iba en el aire, termina ese salto primero
 
-    const x0 = parseFloat(duck.style.left) || duckStartLeft;
-    const x1 = fuerte && destinoLeft != null ? destinoLeft : x0;
+    const x0 = patoWX;                                   // posición en el mundo (centro del pato, en px)
+    const x1 = destinoWX != null ? destinoWX : x0;       // fuerte: avanza hasta aterrizar del otro lado; flojo: rebota donde le digan
     const altura = alturaPx != null ? alturaPx : (fuerte ? Math.max(90, Math.min(170, area.clientHeight * 0.32)) : 38);
     const duracion = fuerte ? 950 : 560;
     const AGACHA = 0.16, ATERRIZA = 0.86;                // fracciones del tiempo total
     const inicio = performance.now();
     let ultimoPunto = 0, despego = false, aterrizo = false, raf = 0, activo = true;
 
-    function aplicar(xPct, y, sx, sy, rot){
-      duck.style.left = xPct + '%';
+    function aplicar(x, y, sx, sy, rot){
+      patoWX = x;
+      duck.style.left = (x - (mundo ? mundo.duckW : 100) / 2).toFixed(1) + 'px';
       cuerpo.style.transform = `translateY(${-y}px) rotate(${rot}deg) scale(${sx}, ${sy})`;
       const s = 1 - 0.6 * (y / altura);
       sombra.style.transform = `scale(${s})`;
@@ -843,12 +831,12 @@
     punto.className = 'jump-trail';
     punto.style.left = (duck.offsetLeft + duck.offsetWidth / 2) + 'px';
     punto.style.bottom = (sueloPx + duck.offsetHeight * 0.45 + y) + 'px';
-    document.getElementById('gameArea').appendChild(punto);
+    mundoEl.appendChild(punto);
     setTimeout(() => punto.remove(), 950);
   }
 
   function soltarPolvo(duck, lado){
-    const area = document.getElementById('gameArea');
+    const area = mundoEl;
     const centro = duck.offsetLeft + duck.offsetWidth / 2;
     [-1, 1].forEach(dir => {
       const nube = document.createElement('div');
@@ -908,118 +896,197 @@
     document.getElementById('statJumps').textContent = saltosBuenosTotal;
   }
 
-  // ------------------------------------------------------------
-  //  La VALLA: su altura es el % de contracción que exige el nivel (buen salto; en el último nivel, el más exigente).
-  //  Viene durante la relajación, se queda frente al pato y, mientras mantiene la contracción, se le acerca:
-  //  llega justo cuando se completa el tiempo. Si lo logra, el pato salta y la valla pasa por debajo; si no, la valla lo frena.
-  // ------------------------------------------------------------
-  const vallaEl = document.getElementById('valla');
+  // ============================================================
+  //  EL MUNDO: un camino con las vallas fijas, una cámara que sigue al pato y el lago al final de cada nivel
+  //  assets/fondo.jpg (1203 × 768) es la pantalla final, con el lago; assets/prado.jpg es la misma sin lago y se repite antes.
+  // ============================================================
+  const FONDO = { w: 1203, h: 768, suelo: 96, estanque: 796 };   // medidas del fondo: piso a 96 px del borde de abajo, lago desde 796 px
   const VALLA_ANCHO = 72;
-  let vallaX = 0, vallaModo = 'oculta', vallaTween = null, vallaRaf = 0, vallaUltimoTs = 0, vallaCiclo = 0;
-  let vallaGeo = null, vallaGeoTs = 0;
+  let sueloPx = 96;
+  let mundo = null;                 // medidas del nivel actual (las llena construirNivel)
+  let nivelConstruido = -1;
+  let patoWX = 0, camX = 0, caminoDesde = 0;     // posición del pato (centro) en el mundo, de la cámara, y desde dónde camina
+  let patoTween = null, flotando = false, caminando = false;
+  let mundoRaf = 0, mundoUltimoTs = 0;
+  const mundoEl = document.getElementById('mundo');
 
-  function geometriaJuego(){
-    const area = document.getElementById('gameArea'), duck = document.getElementById('duckTrack');
-    const W = area.clientWidth, H = area.clientHeight;
-    const centroPato = duck.offsetLeft + duck.offsetWidth / 2;
-    const maxPark = limitePastoPx - VALLA_ANCHO / 2 - 24;                // la valla se queda sobre el pasto, no en el estanque
-    const gap = Math.max(90, Math.min(W * 0.3, 400));
-    const park = Math.max(centroPato + 90, Math.min(centroPato + gap, maxPark));
-    const pasoPx = config && config.jumps_per_level ? (W * (duckEndLeft - duckStartLeft) / 100) / config.jumps_per_level : 0;
-    return { W, H, centroPato, park, spawn: park + Math.max(180, W * 0.26), pasoPx, frente: centroPato + duck.offsetWidth * 0.42 };
-  }
-  function geoValla(){
-    const ahora = performance.now();
-    if (!vallaGeo || ahora - vallaGeoTs > 500){ vallaGeo = geometriaJuego(); vallaGeoTs = ahora; }
-    return vallaGeo;
-  }
-  // 0–100 % de la contracción máxima → altura en píxeles (se ajusta al tamaño de la pantalla)
+  // 0–100 % de la contracción máxima → altura de la valla en píxeles (se ajusta al tamaño de la pantalla)
   function alturaValla(pct, H){
     const Hfull = Math.max(80, Math.min(190, H * 0.34));
     return Math.max(24, Math.min(Hfull, (pct / 100) * Hfull));
   }
-  function pintarValla(){
-    const x = (vallaX - VALLA_ANCHO / 2).toFixed(1) + 'px';
-    vallaEl.style.setProperty('--vx', x);
-    vallaEl.style.transform = `translate3d(${x},0,0)`;
-  }
-  function prepararValla(pct){
-    vallaCiclo++;
-    vallaGeo = geometriaJuego(); vallaGeoTs = performance.now();
-    vallaEl.style.height = alturaValla(pct, vallaGeo.H) + 'px';
-    vallaEl.classList.remove('cae');
-    vallaEl.style.opacity = '1';
-    vallaEl.style.display = 'block';
-    vallaX = vallaGeo.spawn; vallaModo = 'relaja'; vallaTween = null;
-    pintarValla();
-    iniciarBucleValla();
-  }
-  function ocultarValla(){
-    vallaCiclo++;
-    vallaModo = 'oculta'; vallaTween = null;
-    vallaEl.style.display = 'none'; vallaEl.classList.remove('cae');
-  }
-  function objetivoValla(g){
-    if (vallaModo === 'relaja') return g.spawn + (g.park - g.spawn) * Math.min(1, relajaAcumMs / tiempoRelajaMs());
-    if (vallaModo === 'espera') return g.park;
-    if (vallaModo === 'sostiene'){
-      const Tc = tiempoContraccionMs();
-      const p = Math.max(0, Math.min(1, (ultimoT - holdT0) / Tc));
-      const paso = g.centroPato + g.pasoPx / 2;                 // donde estará el pato en el punto más alto del salto
-      return g.park - (g.park - paso) * p * (Tc / (Tc + 450));  // los últimos 450 ms los recorre ya durante el salto
+
+  // Arma el camino del nivel: las vallas quedan fijas; si no caben en una pantalla, la cámara se desliza siguiendo al pato.
+  function construirNivel(conservar){
+    const area = document.getElementById('gameArea'), duck = document.getElementById('duckTrack');
+    const W = area.clientWidth, H = area.clientHeight;
+    if (!W || !H || !config || !config.jumps_per_level) return;
+    const s = H / FONDO.h;                                          // el fondo se ajusta a la altura de la pantalla
+    sueloPx = Math.round(FONDO.suelo * s);
+    area.style.setProperty('--suelo', sueloPx + 'px');
+
+    const duckW = duck.offsetWidth || 100;
+    const g = duckW * 0.5 + VALLA_ANCHO * 0.5 + 16;                 // del pato a la valla justo antes de saltarla (y al aterrizar)
+    const N = Math.max(1, Number(config.jumps_per_level) || 5);
+    const S = W * 0.08 + duckW / 2;                                 // dónde empieza el pato
+    const Tw = FONDO.w * s, lagoEnTile = FONDO.estanque * s;
+    const CAMINATA_MIN = 90;                                        // lo menos que camina entre una valla y la siguiente
+    const necesario = S + (N + 1) * CAMINATA_MIN + 2 * N * g;
+    const lakeWX = Math.max(necesario, lagoEnTile, W - Tw + lagoEnTile);   // dónde empieza el lago
+    const caminata = (lakeWX - S - 2 * N * g) / (N + 1);            // lo que camina entre vallas (parejo)
+    const finalLeft = lakeWX - lagoEnTile, largo = finalLeft + Tw;
+    const hv = alturaValla(umbralesNivelActual().goodPct, H);       // todas las vallas del nivel miden lo mismo
+    const P = [], Hx = [], L = [];                                  // antes de saltar, valla, y aterrizaje de cada valla
+    for (let i = 0; i < N; i++){ P[i] = S + caminata + i * (caminata + 2 * g); Hx[i] = P[i] + g; L[i] = Hx[i] + g; }
+    mundo = { W, H, s, g, N, S, caminata, lakeWX, largo, camMax: Math.max(0, largo - W), hv, P, Hx, L, duckW };
+    mundoEl.style.width = largo + 'px';
+
+    // Fondo: al final la pantalla del lago; antes, el prado repetido y espejado para que las uniones no se noten
+    const fondo = document.getElementById('fondoMundo'); fondo.textContent = '';
+    const tile = (x, archivo, espejo) => {
+      const d = document.createElement('div');
+      d.className = 'tile' + (espejo ? ' espejo' : '');
+      d.style.left = x + 'px'; d.style.width = Tw + 'px';
+      d.style.backgroundImage = `url("assets/${archivo}")`;
+      fondo.appendChild(d);
+    };
+    tile(finalLeft, 'fondo.jpg', false);
+    for (let x = finalLeft - Tw, j = 0; x > -Tw; x -= Tw, j++) tile(x, 'prado.jpg', j % 2 === 0);
+
+    // Camino (la línea amarilla es lo recorrido) y vallas
+    const camino = document.getElementById('camino');
+    camino.style.left = S + 'px'; camino.style.width = Math.max(0, lakeWX - S) + 'px';
+    const cont = document.getElementById('vallas'); cont.textContent = '';
+    for (let i = 0; i < N; i++){
+      const v = document.createElement('div');
+      v.className = 'valla'; v.dataset.i = String(i);
+      v.style.left = (Hx[i] - VALLA_ANCHO / 2) + 'px'; v.style.height = hv + 'px';
+      v.innerHTML = '<i class="v-poste p1"></i><i class="v-poste p2"></i><i class="v-poste p3"></i><i class="v-riel r1"></i><i class="v-riel r2"></i>';
+      cont.appendChild(v);
     }
-    return vallaX;
+
+    // El pato: al inicio, o donde le toca si se cambió el tamaño de la pantalla a mitad del nivel
+    if (saltoActual) saltoActual.terminar();
+    const hechas = conservar ? Math.min(saltosBuenosNivel, N) : 0;
+    patoTween = null; flotando = false; caminando = false;
+    patoWX = hechas === 0 ? S : L[hechas - 1];
+    caminoDesde = patoWX;
+    camX = Math.max(0, Math.min(mundo.camMax, patoWX - W * 0.32));
+    nivelConstruido = nivelActual;
+    document.getElementById('duckTrack').classList.remove('flotando');
+    pintarMundo();
+    iniciarBucleMundo();
   }
-  function bucleValla(ts){
-    vallaRaf = 0;
-    if (vallaModo === 'oculta' || vallaModo === 'cayendo') return;
-    const dt = vallaUltimoTs ? Math.min(100, ts - vallaUltimoTs) : 16;
-    vallaUltimoTs = ts;
-    if (vallaTween){
-      const k = Math.max(0, Math.min(1, (ts - vallaTween.t0) / vallaTween.dur));
-      vallaX = vallaTween.x0 + (vallaTween.x1 - vallaTween.x0) * k;
-      if (vallaTween.fade) vallaEl.style.opacity = String(1 - k);
-      pintarValla();
-      if (k >= 1){ const fin = vallaTween.alAcabar; vallaTween = null; if (fin) fin(); }
-    } else if (vallaModo === 'relaja' || vallaModo === 'espera' || vallaModo === 'sostiene'){
-      if (!enPausa){
-        const obj = objetivoValla(geoValla());
-        vallaX += (obj - vallaX) * (1 - Math.exp(-dt / 90));    // suaviza: los datos llegan a ráfagas
-        const g = geoValla();
-        // al venir de lejos aparece poco a poco (así no se ve pasar sobre el estanque)
-        vallaEl.style.opacity = vallaModo === 'relaja' ? String(Math.max(0, Math.min(1, (g.spawn - vallaX) / (0.3 * (g.spawn - g.park))))) : '1';
-        pintarValla();
-      }
+
+  function ajustarEscena(){
+    if (config && config.jumps_per_level){ construirNivel(true); return; }
+    const area = document.getElementById('gameArea');
+    sueloPx = Math.round(FONDO.suelo * (area.clientHeight / FONDO.h));
+    area.style.setProperty('--suelo', sueloPx + 'px');
+  }
+  window.addEventListener('resize', ajustarEscena);
+
+  function pintarMundo(){
+    const duck = document.getElementById('duckTrack');
+    mundoEl.style.transform = `translate3d(${(-camX).toFixed(1)}px,0,0)`;
+    duck.style.left = (patoWX - (mundo ? mundo.duckW : 100) / 2).toFixed(1) + 'px';
+    document.getElementById('progressFill').style.width = Math.max(0, patoWX - (mundo ? mundo.S : 0)).toFixed(1) + 'px';
+  }
+
+  // Hacia dónde camina el pato según la fase: en la relajación avanza hacia la valla que sigue
+  // (si contrae, el reloj se reinicia y se frena o retrocede); en la espera y la contracción está parado frente a ella.
+  function objetivoPato(){
+    if (!mundo || saltosBuenosNivel >= mundo.N) return null;
+    const P = mundo.P[saltosBuenosNivel];
+    if (fase === 'relaja'){
+      const f = Math.max(0, Math.min(1, relajaAcumMs / tiempoRelajaMs()));
+      return caminoDesde + (P - caminoDesde) * f;
     }
-    if (vallaModo !== 'oculta' && vallaModo !== 'cayendo') vallaRaf = requestAnimationFrame(bucleValla);
+    if (fase === 'espera' || fase === 'sostiene') return P;
+    return null;
   }
-  function iniciarBucleValla(){
-    if (!vallaRaf){ vallaUltimoTs = 0; vallaRaf = requestAnimationFrame(bucleValla); }
+
+  function iniciarBucleMundo(){
+    if (!mundoRaf){ mundoUltimoTs = 0; mundoRaf = requestAnimationFrame(bucleMundo); }
   }
-  // Éxito: llega al pato justo en lo más alto del salto y sigue de largo
-  function vallaPasa(g){
-    const ciclo = vallaCiclo, paso = g.centroPato + g.pasoPx / 2;
-    vallaModo = 'tween';
-    vallaTween = { x0: vallaX, x1: paso, t0: performance.now(), dur: 450, alAcabar: () => {
-      if (ciclo !== vallaCiclo) return;
-      vallaTween = { x0: vallaX, x1: paso - 340, t0: performance.now(), dur: 750, fade: true, alAcabar: () => {
-        if (ciclo === vallaCiclo) ocultarValla();
-      } };
+  function bucleMundo(ts){
+    mundoRaf = requestAnimationFrame(bucleMundo);
+    if (!mundo) return;
+    const dt = mundoUltimoTs ? Math.min(100, ts - mundoUltimoTs) : 16;
+    mundoUltimoTs = ts;
+    if (patoTween){
+      const k = Math.max(0, Math.min(1, (ts - patoTween.t0) / patoTween.dur));
+      patoWX = patoTween.x0 + (patoTween.x1 - patoTween.x0) * k;
+      caminando = true;
+      if (k >= 1){ const fin = patoTween.alAcabar; patoTween = null; caminando = false; if (fin) fin(); }
+    } else if (!saltoActual && !enPausa){
+      const obj = objetivoPato();
+      if (obj != null){
+        const antes = patoWX;
+        patoWX += (obj - patoWX) * (1 - Math.exp(-dt / 110));       // suaviza: los datos llegan a ráfagas
+        caminando = Math.abs(patoWX - antes) > 0.12;
+      } else caminando = false;
+    }
+    // La cámara sigue al pato (sin salirse del mundo): el pato queda a un tercio de la pantalla
+    const objCam = Math.max(0, Math.min(mundo.camMax, patoWX - mundo.W * 0.32));
+    camX += (objCam - camX) * (1 - Math.exp(-dt / 220));
+    pintarMundo();
+    if (!saltoActual){
+      const cuerpo = document.querySelector('#duckTrack .duck-body');
+      if (flotando) cuerpo.style.transform = `translateY(${(8 + Math.sin(ts / 420) * 3).toFixed(1)}px) rotate(${(Math.sin(ts / 520) * 4).toFixed(1)}deg)`;
+      else if (caminando) cuerpo.style.transform = `translateY(${(-Math.abs(Math.sin(ts / 120)) * 3).toFixed(1)}px) rotate(${(Math.sin(ts / 120) * 3).toFixed(1)}deg)`;
+      else cuerpo.style.transform = '';
+    }
+  }
+
+  // La valla fija se sacude cuando el pato se queda corto y choca
+  function tiemblaValla(i){
+    const v = document.querySelector(`#vallas .valla[data-i="${i}"]`);
+    if (!v) return;
+    v.classList.remove('tiembla'); void v.offsetWidth; v.classList.add('tiembla');
+    setTimeout(() => v.classList.remove('tiembla'), 600);
+  }
+
+  // Fin de cada nivel: tras la última valla el pato camina hasta el lago, se echa un chapuzón y flota
+  function irAlLago(){
+    if (!mundo || juegoTerminado) { avanzarNivel(); return; }
+    const orilla = mundo.lakeWX - 24 * mundo.s;
+    const dist = Math.max(0, orilla - patoWX);
+    patoTween = { x0: patoWX, x1: orilla, t0: performance.now(), dur: Math.max(700, Math.min(2200, dist / 0.16)), alAcabar: () => {
+      animarSalto(true, mundo.lakeWX + 90 * mundo.s, 56 * mundo.s);   // salta al agua
+      setTimeout(() => {
+        chapuzon(patoWX);
+        flotando = true;
+        document.getElementById('duckTrack').classList.add('flotando');
+        setTimeout(avanzarNivel, 800);
+      }, 980);
     } };
-    iniciarBucleValla();
   }
-  // Fallo: la valla alcanza al pato por delante, el pato se queda corto y la valla se cae
-  function vallaChoca(g){
-    const ciclo = vallaCiclo;
-    vallaModo = 'tween';
-    vallaTween = { x0: vallaX, x1: g.frente, t0: performance.now(), dur: 300, alAcabar: () => {
-      if (ciclo !== vallaCiclo) return;
-      vallaModo = 'cayendo';
-      pintarValla();
-      vallaEl.classList.add('cae');
-      setTimeout(() => { if (ciclo === vallaCiclo) ocultarValla(); }, 650);
-    } };
-    iniciarBucleValla();
+
+  // Salpicadura: gotitas que salen disparadas y una onda en el agua
+  function chapuzon(wx){
+    const bajo = sueloPx - 6;
+    for (let k = 0; k < 12; k++){
+      const gota = document.createElement('div');
+      gota.className = 'gota';
+      gota.style.left = (wx + (Math.random() - 0.5) * 30) + 'px';
+      gota.style.bottom = bajo + 'px';
+      gota.style.setProperty('--dx', ((Math.random() - 0.5) * 120).toFixed(0) + 'px');
+      gota.style.setProperty('--dy', (-(50 + Math.random() * 70)).toFixed(0) + 'px');
+      mundoEl.appendChild(gota);
+      setTimeout(() => gota.remove(), 800);
+    }
+    const onda = document.createElement('div');
+    onda.className = 'onda'; onda.style.left = wx + 'px'; onda.style.bottom = (bajo - 6) + 'px';
+    mundoEl.appendChild(onda);
+    setTimeout(() => onda.remove(), 1100);
+  }
+
+  // Cambio de nivel: un fundido corto y empieza un camino nuevo desde el inicio
+  function transicionNivel(alTerminar){
+    const f = document.getElementById('fundido');
+    f.style.opacity = '1';
+    setTimeout(() => { alTerminar(); f.style.opacity = '0'; }, 480);
   }
 
   // ------------------------------------------------------------
@@ -1071,13 +1138,12 @@
   // ------------------------------------------------------------
   function setFase(nueva, t){
     fase = nueva; faseT0 = t;
-    if (vallaModo !== 'oculta' && !vallaTween && vallaModo !== 'cayendo' && (nueva === 'relaja' || nueva === 'espera' || nueva === 'sostiene')) vallaModo = nueva;
   }
 
   function iniciarFaseRelaja(){
     setFase('relaja', ultimoT);
     relajaAcumMs = 0; relajaTotalMs = 0; contrayendoRelajaMs = 0; sobreUmbralMs = 0; avisoRelaja = false;
-    prepararValla(umbralesNivelActual().goodPct);       // altura según el % que exige este nivel
+    caminoDesde = patoWX;                               // el pato camina desde donde quedó hasta la siguiente valla
     actualizarGuia(true);
   }
 
@@ -1187,19 +1253,17 @@
     if (motivo) intentoActual.motivo = motivo;
     reproducirCuac();
 
-    const g = geometriaJuego();
-    const hv = alturaValla(req, g.H);
+    const hv = mundo.hv, i = saltosBuenosNivel;         // la valla que está frente al pato
     const zoneEl = document.getElementById('zoneIndicator');
     if (bueno){
       zoneEl.textContent = '¡Buen salto!';
       guiaResultado = 'bien';
       saltosBuenosNivel++; saltosBuenosTotal++;
       puntajeTotal += 2;
-      animarSalto(true, actualizarPosicionPato(), Math.min(g.H * 0.62, hv + 36));   // pasa por encima de la valla
-      vallaPasa(g);
+      animarSalto(true, mundo.L[i], Math.min(mundo.H * 0.62, hv + 36));   // pasa por encima y aterriza del otro lado
       if (saltosBuenosNivel >= config.jumps_per_level){
         avanzando = true;
-        setTimeout(avanzarNivel, 1050);   // deja ver el arco y el aterrizaje antes de celebrar
+        setTimeout(irAlLago, 1000);       // deja ver el arco y el aterrizaje; luego camina al lago
       }
     } else {
       zoneEl.textContent = motivo === 'corto' ? 'Soltaste muy pronto' : 'Salto flojo, ¡sigue intentando!';
@@ -1207,8 +1271,9 @@
       saltosFlojosTotal++;
       puntajeTotal = Math.max(0, puntajeTotal - 1);
       const frac = Math.max(0.25, Math.min(1, pctMedio / Math.max(1, req)));
-      animarSalto(false, null, Math.max(16, Math.min(hv * 0.8, hv * frac * 0.85)));   // se queda por debajo de la valla
-      vallaChoca(g);
+      // se queda por debajo de la valla, choca y rebota un poco hacia atrás; la valla sigue ahí para reintentar
+      animarSalto(false, mundo.P[i] - 44, Math.max(16, Math.min(hv * 0.8, hv * frac * 0.85)));
+      setTimeout(() => tiemblaValla(i), 180);
     }
     pintarPuntaje();
     actualizarGuia(true);
@@ -1232,7 +1297,7 @@
 
   function avanzarNivel(){
     clearInterval(sampleIntervalId);
-    ocultarValla(); actualizarGuia(true);
+    actualizarGuia(true);
     nivelesCompletados++;
     const esFinal = nivelActual === config.total_levels;
     document.getElementById('celebrationText').textContent = esFinal ? '¡Completaste el último nivel!' : `¡Nivel ${nivelActual} completado!`;
@@ -1246,54 +1311,17 @@
 
       if (esFinal){ completarJuego(); return; }
 
-      saltarCercaYAvanzar(() => {
+      transicionNivel(() => {
         nivelActual++;
         saltosBuenosNivel = 0;
         avanzando = false;
         if (saltoActual) saltoActual.terminar();
-        const patoReinicio = document.getElementById('duckTrack');
-        patoReinicio.style.left = duckStartLeft + '%';
-        patoReinicio.dataset.pose = 'rest';
-        document.getElementById('progressFill').style.width = '0%';
+        document.getElementById('duckTrack').dataset.pose = 'rest';
+        construirNivel();                     // camino nuevo desde el inicio, con las vallas del nuevo nivel
         actualizarAmbienteNivel();
         if (!enPausa) iniciarMuestreo();
       });
     }, 2200);
-  }
-
-  function saltarCercaYAvanzar(alTerminar){
-    const gameArea = document.getElementById('gameArea');
-    const paisajeActual = document.getElementById('landscape');
-    const paisajeNuevo = paisajeActual.cloneNode(true);
-    const idsOriginales = Array.from(paisajeNuevo.querySelectorAll('[id]'), el => [el, el.id]);
-    idsOriginales.forEach(([el]) => el.removeAttribute('id'));
-    paisajeNuevo.removeAttribute('id');
-    generarNubesYFlores(paisajeNuevo);
-    paisajeNuevo.style.transition = 'none';
-    paisajeNuevo.style.transform = 'translateX(100%)';
-    gameArea.appendChild(paisajeNuevo);
-
-    let terminado = false;
-    let temporizador;
-    function terminarTransicion(event){
-      if (event && (event.target !== paisajeNuevo || event.propertyName !== 'transform')) return;
-      if (terminado) return;
-      terminado = true;
-      clearTimeout(temporizador);
-      paisajeActual.remove();
-      idsOriginales.forEach(([el, id]) => el.id = id);
-      paisajeNuevo.id = 'landscape';
-      paisajeNuevo.style.transition = '';
-      paisajeNuevo.style.transform = '';
-      alTerminar();
-    }
-    paisajeNuevo.addEventListener('transitionend', terminarTransicion);
-    temporizador = setTimeout(terminarTransicion, 1500);
-    requestAnimationFrame(() => {
-      paisajeNuevo.style.transition = '';
-      paisajeActual.style.transform = 'translateX(-100%)';
-      paisajeNuevo.style.transform = 'translateX(0)';
-    });
   }
 
   function actualizarControlSonido(){
@@ -1313,7 +1341,7 @@
       cargarSonidosGrabados();
     }
     if (audioContext.state === 'suspended'){
-      audioContext.resume().catch(() => {
+      audioContext.resume().then(actualizarMusica).catch(() => {
         sonidoActivado = false;
         actualizarControlSonido();
       });
@@ -1323,16 +1351,46 @@
   // Sonidos grabados (carpeta assets): cuac.mp3 en cada salto, nivel.mp3 al completar un nivel y ganador.mp3 al completar toda la sesión.
   // Si falta cuac.mp3 el cuac se sintetiza; si faltan los otros dos, simplemente no suenan.
   let cuacGrabado = null;
-  const sonidosGrabados = { nivel: null, ganador: null };
+  const sonidosGrabados = { nivel: null, ganador: null, musica: null };
   function cargarSonidosGrabados(){
-    ['cuac', 'nivel', 'ganador'].forEach(nombre => {
+    ['cuac', 'nivel', 'ganador', 'musica'].forEach(nombre => {
       fetch(`assets/${nombre}.mp3`)
         .then(r => { if (!r.ok) throw new Error('sin archivo'); return r.arrayBuffer(); })
         .then(datos => new Promise((ok, falla) => audioContext.decodeAudioData(datos, ok, falla)))
-        .then(buffer => { if (nombre === 'cuac') cuacGrabado = buffer; else sonidosGrabados[nombre] = buffer; })
+        .then(buffer => { if (nombre === 'cuac') cuacGrabado = buffer; else sonidosGrabados[nombre] = buffer; if (nombre === 'musica') actualizarMusica(); })
         .catch(() => { if (nombre === 'cuac') cuacGrabado = null; else sonidosGrabados[nombre] = null; });
     });
   }
+  // Música de fondo (assets/musica.mp3): en bucle durante la sesión, bajita para no distraer.
+  // La pista ya viene al 70 % de su volumen original; este número va de 0 (apagada) a 1 si la quieres más baja o más alta.
+  const VOLUMEN_MUSICA = 1;
+  let musicaFuente = null, musicaGanancia = null;
+  const musicaDebeSonar = () => sonidoActivado && sesionCorriendo && !enPausa && !juegoTerminado && !cerrando;
+  function actualizarMusica(){
+    if (!audioContext || audioContext.state !== 'running') return;
+    const ahora = audioContext.currentTime;
+    if (musicaDebeSonar() && sonidosGrabados.musica){
+      if (!musicaFuente){
+        musicaFuente = audioContext.createBufferSource();
+        musicaFuente.buffer = sonidosGrabados.musica;
+        musicaFuente.loop = true;
+        musicaGanancia = audioContext.createGain();
+        musicaGanancia.gain.value = 0;
+        musicaFuente.connect(musicaGanancia); musicaGanancia.connect(audioContext.destination);
+        musicaFuente.start();
+      }
+      musicaGanancia.gain.cancelScheduledValues(ahora);
+      musicaGanancia.gain.setTargetAtTime(VOLUMEN_MUSICA, ahora, 0.6);          // entra suave
+    } else if (musicaFuente){
+      musicaGanancia.gain.cancelScheduledValues(ahora);
+      musicaGanancia.gain.setTargetAtTime(0, ahora, 0.35);                       // sale suave (pausa, fin de sesión o sonido apagado)
+      if (juegoTerminado || cerrando || !sonidoActivado){
+        const fuente = musicaFuente; musicaFuente = null; musicaGanancia = null;
+        setTimeout(() => { try { fuente.stop(); } catch (e) {} }, 2500);
+      }
+    }
+  }
+
   function reproducirGrabado(nombre, volumen){
     const buffer = sonidosGrabados[nombre];
     if (!sonidoActivado || !audioContext || audioContext.state !== 'running' || !buffer) return false;
@@ -1403,6 +1461,7 @@
     sonidoActivado = !sonidoActivado;
     actualizarControlSonido();
     activarAudio();
+    actualizarMusica();
   });
   actualizarControlSonido();
 
@@ -1424,7 +1483,8 @@
   // ============================================================
   function completarJuego(){
     juegoTerminado = true;
-    fase = 'inactivo'; ocultarValla(); actualizarGuia(true);
+    fase = 'inactivo'; actualizarGuia(true);
+    actualizarMusica();                       // la música se apaga suave para que se oiga la fanfarria
     clearInterval(sampleIntervalId);          // ya no hay más juego, pero el tiempo sigue corriendo
     document.getElementById('statusText').textContent = '¡Juego completado!';
     avisarFisio('game_completed');
@@ -1554,6 +1614,7 @@
   async function finalizarYGuardar(origen){
     if (cerrando) return;
     cerrando = true;
+    actualizarMusica();
     clearInterval(sampleIntervalId);
     const btn = document.getElementById('btnFinalAccion');
     mostrarPantallaFinal(juegoTerminado ? 'completo' : 'terminada');
