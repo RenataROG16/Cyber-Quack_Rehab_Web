@@ -1,0 +1,517 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Cyber Quack Rehab — Paciente</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="../css/estilos.css" />
+<style>
+  body{ display: block; width: 100%; padding: 24px; align-items: initial; justify-content: initial; overflow-x: hidden; overflow-y: auto; }
+  .link-back{ background: transparent; border: none; color: var(--ink-dim); font-size: 13px; cursor: pointer; text-decoration: underline; font-family: var(--sans); }
+  .topbar{ display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+  .topbar .greeting{ font-size: 20px; font-weight: 700; font-family: var(--display); color: var(--duck-yellow); margin: 0; }
+
+  .grid{ display: grid; grid-template-columns: 1fr 2fr; gap: 20px; align-items: stretch; }
+  .panel{ background: rgba(14,74,87,0.85); border: 2px solid var(--panel-line); border-radius: 18px; padding: 18px; }
+
+  /* --- Panel izquierdo --- */
+  #panelLeft{ display: flex; flex-direction: column; align-items: center; }
+  .progress-circle{
+    width: 140px; height: 140px; border-radius: 50%; margin: 6px auto 16px;
+    display: flex; align-items: center; justify-content: center;
+    background: conic-gradient(var(--duck-yellow) calc(var(--pct) * 1%), rgba(0,0,0,0.25) 0);
+  }
+  .progress-circle .inner{ width: 112px; height: 112px; border-radius: 50%; background: var(--pond-deep); display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .progress-circle .inner .num{ font-size: 22px; font-weight: 800; font-family: var(--display); color: var(--duck-yellow); }
+  .progress-circle .inner .lbl{ font-size: 10px; color: var(--ink-dim); }
+
+  .tabs{ display: flex; width: 100%; gap: 6px; margin-bottom: 12px; }
+  .tabs button{ flex: 1; font-size: 12.5px; padding: 9px; border-radius: 8px; border: 1px solid var(--panel-line); background: rgba(0,0,0,0.2); color: var(--ink); font-family: var(--sans); cursor: pointer; }
+  .tabs button.active{ background: var(--duck-yellow); color: #1a1200; border-color: var(--duck-yellow); font-weight: 700; }
+
+  .tab-content{ width: 100%; background: rgba(0,0,0,0.2); border-radius: 10px; padding: 12px; min-height: 140px; }
+  .var-row{ display: flex; justify-content: space-between; font-size: 13px; padding: 6px 0; border-bottom: 1px solid var(--panel-line); }
+  .var-row:last-child{ border-bottom: none; }
+  .var-row .k{ color: var(--ink-dim); }
+  .comment-item{ font-size: 12.5px; background: rgba(255,205,60,0.1); border-radius: 8px; padding: 8px 10px; margin-bottom: 8px; }
+  .empty-msg{ font-size: 12.5px; color: var(--ink-dim); text-align: center; padding: 20px 0; }
+
+  /* --- Columna derecha --- */
+  #panelRight{ display: flex; flex-direction: column; gap: 20px; }
+  #panelTop{ display: flex; align-items: center; gap: 20px; }
+  #duckPreview{ flex: 1; display: flex; align-items: center; justify-content: center; height: 90px; position: relative; }
+  #duckPreview .duck-preview-visual{ display: grid; place-items: center; position: relative; width: 112px; height: 90px; animation: duckPreviewHop 2.8s ease-in-out infinite; }
+  #duckPreview .duck-pose{ display: block; width: 104px; height: auto; filter: drop-shadow(0 5px 3px rgba(0,0,0,.2)); }
+  #duckPreview .duck-pose.pose-jump{ position: absolute; bottom: 0; left: 4px; opacity: 0; }
+  #duckPreview .duck-pose.pose-rest{ animation: duckPreviewRest 2.8s ease-in-out infinite; }
+  #duckPreview .duck-pose.pose-jump{ animation: duckPreviewJump 2.8s ease-in-out infinite; }
+  #duckPreview .duck-fallback{ display: none; }
+  #duckPreview .image-fallback .duck-pose{ display: none; }
+  #duckPreview .image-fallback .duck-fallback{ display: inline-block; font-size: 52px; }
+  @keyframes duckPreviewHop{ 0%,18%,68%,100%{ transform: translateY(0); } 32%,52%{ transform: translateY(-15px); } }
+  @keyframes duckPreviewRest{ 0%,18%,68%,100%{ opacity: 1; } 32%,52%{ opacity: 0; } }
+  @keyframes duckPreviewJump{ 0%,18%,68%,100%{ opacity: 0; } 32%,52%{ opacity: 1; } }
+  .cowboy-hat{ position: absolute; top: -0.42em; left: 0.02em; transform: rotate(-10deg); display: flex; flex-direction: column; align-items: center; }
+  .cowboy-hat .crown{ width: 0.32em; height: 0.28em; background: #a3702f; border: 0.02em solid #6b4518; border-bottom: none; border-radius: 0.16em 0.16em 0 0; }
+  .cowboy-hat .brim{ width: 0.66em; height: 0.16em; background: #8a5a2b; border: 0.02em solid #6b4518; border-radius: 50%; margin-top: -0.03em; }
+
+  #btnOpenToken{ padding: 18px 32px; font-size: 15px; font-weight: 800; }
+
+  #panelBottom{ flex: 1; display: flex; flex-direction: column; }
+  .session-nav{ display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .session-nav button{ background: none; border: none; color: var(--ink-dim); font-size: 20px; cursor: pointer; padding: 4px 10px; }
+  .session-nav button:disabled{ opacity: 0.25; cursor: default; }
+  .session-nav .title{ font-family: var(--display); font-size: 16px; color: var(--duck-yellow); }
+
+  .session-grid{ display: grid; grid-template-columns: 1.3fr 1fr; gap: 16px; flex: 1; }
+  .emg-graph{ background: rgba(0,0,0,0.2); border-radius: 10px; min-height: 140px; display: flex; align-items: center; justify-content: center; }
+  canvas{ width: 100%; height: 100%; }
+  .trophy-box{ background: rgba(0,0,0,0.2); border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 10px; }
+  .trophy-box .icon{ display: grid; place-items: center; min-height: 126px; }
+  .trophy-box .label{ font-size: 15px; font-weight: 700; margin: 6px 0 2px; }
+  .trophy-box .sub{ font-size: 12px; color: var(--ink-dim); }
+  .medal-wrap{ position: relative; display: inline-grid; place-items: center; width: 104px; height: 124px; animation: medalFloat 3s ease-in-out infinite; }
+  .medal-art{ width: 100%; height: 100%; overflow: visible; }
+  .medal-ribbon{ fill: #ac3d32; stroke: #f5c46b; stroke-width: 2; }
+  .medal-face{ stroke: #fff0aa; stroke-width: 3; }
+  .medal-horseshoe{ fill: none; stroke: #75401d; stroke-width: 8; stroke-linecap: round; stroke-linejoin: round; }
+  .medal-nail{ fill: #f8dda0; }
+  .medal-star{ fill: #fff0aa; stroke: #75401d; stroke-width: 2; stroke-linejoin: round; }
+  .medal-art.oro .medal-face{ fill: #e6a921; }
+  .medal-art.plata .medal-face{ fill: #a9b5c2; }
+  .medal-art.bronce .medal-face{ fill: #bd7442; }
+  .medal-art.plata .medal-horseshoe{ stroke: #485663; }
+  .medal-art.bronce .medal-horseshoe{ stroke: #613b2b; }
+  /* Brillo: círculo fijo encima de la cara de la medalla (cx 60, cy 58, r 37 del dibujo 120×148);
+     lo que se mueve es el degradado de adentro, así nunca se sale del círculo */
+  .medal-wrap::after{ content: ""; position: absolute; top: 14.2%; left: 50%; height: 50%; aspect-ratio: 1; transform: translateX(-50%); border-radius: 50%; pointer-events: none;
+    background: linear-gradient(115deg, transparent 40%, rgba(255,255,255,.6) 50%, transparent 60%) no-repeat; background-size: 300% 100%; background-position: 100% 0;
+    animation: medalShine 3.8s ease-in-out infinite; }
+  @keyframes medalShine{ 0%,55%{ background-position: 100% 0; } 78%,100%{ background-position: 0 0; } }
+  @keyframes medalFloat{ 0%,100%{ translate: 0 0; } 50%{ translate: 0 -5px; } }
+
+  /* --- Modal del token (3 dígitos) --- */
+  .modal-overlay{ display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); align-items: center; justify-content: center; z-index: 50; }
+  .modal-overlay.show{ display: flex; }
+  .token-modal{ background: var(--pond-deep); border: 2px solid var(--duck-yellow); border-radius: 18px; padding: 30px; text-align: center; width: 320px; }
+  .token-modal p.title{ font-size: 15px; font-weight: 600; margin: 0 0 4px; }
+  .token-modal p.sub{ font-size: 12.5px; color: var(--ink-dim); margin: 0 0 18px; }
+  .token-slots{ display: flex; justify-content: center; gap: 10px; margin-bottom: 20px; }
+  .token-slots .slot{ width: 44px; height: 52px; border: 2px solid var(--panel-line); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 700; font-family: var(--display); }
+  .token-slots .slot.filled{ border-color: var(--duck-yellow); color: var(--duck-yellow); }
+  .keypad{ display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
+  .keypad button{ padding: 14px; font-size: 17px; border-radius: 10px; border: 1px solid var(--panel-line); background: rgba(0,0,0,0.2); color: var(--ink); cursor: pointer; }
+  .keypad button.confirm{ background: var(--duck-yellow); color: #1a1200; }
+  .token-error{ color: var(--danger); font-size: 12.5px; min-height: 16px; margin-top: 10px; }
+  .sess-label{ font-family: var(--display); color: var(--duck-yellow); font-size: 13px; margin: 0 0 8px; }
+  .legend{ display: flex; gap: 8px; margin-bottom: 10px; }
+  .chip{ font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 999px; }
+  .chip.avg{ background: rgba(127,214,255,0.15); color: #7fd6ff; }
+  .chip.max{ background: rgba(255,205,60,0.15); color: #ffcd3c; }
+  .vars-table{ width: 100%; border-collapse: collapse; font-size: 13px; }
+  .vars-table th{ font-size: 11px; text-align: right; padding: 4px 0 6px; font-weight: 700; }
+  .vars-table th.avg{ color: #7fd6ff; } .vars-table th.max{ color: #ffcd3c; }
+  .vars-table td{ padding: 8px 0; border-top: 1px solid var(--panel-line); text-align: right; font-weight: 700; }
+  .vars-table td:first-child{ text-align: left; color: var(--ink-dim); font-weight: 500; }
+  .vars-table td.avg{ color: #7fd6ff; } .vars-table td.max{ color: #ffcd3c; }
+  .note{ font-size: 10.5px; color: var(--ink-dim); margin: 8px 0 0; }
+  .frequency-help{ margin-top: 12px; padding: 10px; border-radius: 8px; background: rgba(0,0,0,0.16); }
+  .frequency-help p{ font-size: 11.5px; line-height: 1.45; color: var(--ink-dim); margin: 0 0 7px; }
+  .frequency-help p:last-child{ margin-bottom: 0; }
+  .frequency-help strong{ color: var(--ink); }
+  @media (max-width: 820px){
+    body{ padding: 16px; }
+    .grid{ grid-template-columns: minmax(0,1fr); gap: 14px; }
+    #panelRight{ gap: 14px; }
+  }
+  @media (max-width: 560px){
+    body{ padding: 12px; }
+    .topbar{ align-items: flex-start; gap: 10px; }
+    .topbar .greeting{ font-size: 17px; }
+    .grid{ gap: 12px; }
+    .panel{ padding: 14px; }
+    #panelTop{ flex-direction: column; gap: 10px; }
+    #duckPreview{ width: 100%; height: 82px; }
+    #btnOpenToken{ width: 100%; padding: 13px 18px; }
+    .session-grid{ grid-template-columns: minmax(0,1fr); gap: 10px; }
+    .emg-graph{ height: 190px; }
+    .trophy-box{ min-height: 174px; }
+    .token-modal{ width: min(320px, calc(100vw - 24px)); padding: 22px 18px; }
+    .vars-table{ font-size: 12px; }
+    .vars-table td{ padding: 7px 3px; }
+  }
+  @media (prefers-reduced-motion: reduce){
+    *, *::before, *::after{ scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+  }
+</style>
+</head>
+<body>
+
+  <div class="topbar">
+    <p class="greeting" id="greeting">Hola, ...</p>
+    <button class="btn" id="btnLogout">Cerrar sesión</button>
+  </div>
+
+  <div class="grid">
+    <div class="panel" id="panelLeft">
+      <div class="progress-circle" id="progressCircle" style="--pct:0;">
+        <div class="inner"><span class="num" id="progressNum">0/20</span><span class="lbl">sesiones</span></div>
+      </div>
+
+      <div class="tabs">
+        <button id="tabResultados" class="active">Resultados</button>
+        <button id="tabComentarios">Comentarios</button>
+      </div>
+
+      <div class="tab-content" id="tabContent"></div>
+    </div>
+
+    <div id="panelRight">
+      <div class="panel" id="panelTop">
+        <div id="duckPreview">
+          <span class="duck-preview-visual duck-visual">
+            <img class="duck-pose pose-rest" src="assets/pato-reposo.svg" alt="" onerror="this.parentElement.classList.add('image-fallback')">
+            <img class="duck-pose pose-jump" src="assets/pato-salto.svg" alt="" onerror="this.parentElement.classList.add('image-fallback')">
+            <span class="duck-fallback"><span class="duck-combo"><span class="cowboy-hat"><span class="crown"></span><span class="brim"></span></span>🦆</span></span>
+          </span>
+        </div>
+        <button class="btn primary" id="btnOpenToken">▶ Iniciar juego</button>
+      </div>
+
+      <div class="panel" id="panelBottom">
+        <div class="session-nav">
+          <button id="navPrev">‹</button>
+          <span class="title" id="sessionTitle">Sesión #—</span>
+          <button id="navNext">›</button>
+        </div>
+        <div class="session-grid">
+          <div class="emg-graph"><canvas id="emgCanvas"></canvas></div>
+          <div class="trophy-box">
+            <span class="icon" id="trophyIcon" role="img" aria-label="Sin medalla">—</span>
+            <span class="label" id="trophyLabel">Sin sesiones</span>
+            <span class="sub" id="trophySub"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="tokenModal">
+    <div class="token-modal">
+      <p class="title">Ingresa el código</p>
+      <p class="sub">Pídeselo a tu fisioterapeuta</p>
+      <div class="token-slots">
+        <div class="slot" id="slot0"></div>
+        <div class="slot" id="slot1"></div>
+        <div class="slot" id="slot2"></div>
+      </div>
+      <div class="keypad">
+        <button data-k="1">1</button><button data-k="2">2</button><button data-k="3">3</button>
+        <button data-k="4">4</button><button data-k="5">5</button><button data-k="6">6</button>
+        <button data-k="7">7</button><button data-k="8">8</button><button data-k="9">9</button>
+        <button id="keyBack">⌫</button><button data-k="0">0</button>
+        <button class="confirm" id="keyConfirm">✓</button>
+      </div>
+      <div class="token-error" id="tokenError"></div>
+      <button class="link-back" id="btnCloseModal" style="margin-top:10px;">Cancelar</button>
+    </div>
+  </div>
+
+<script src="../js/supabaseClient.js"></script>
+<script>
+  let currentUser = null, patientProfile = null, allSessions = [];
+  let sessionIndex = 0;
+
+  async function init(){
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    if (!user){ window.location.href = '../index.html'; return; }
+    currentUser = user;
+
+    const { data: profile } = await supabaseClient.from('profiles').select('*').eq('id', user.id).single();
+    patientProfile = profile;
+    document.getElementById('greeting').textContent = `Hola, ${profile.full_name}`;
+
+    await cargarProgreso();
+    await cargarComentarios();
+    await cargarSesiones();
+    mostrarResultados();
+  }
+
+  async function cargarProgreso(){
+    const { data: config } = await supabaseClient.from('game_config').select('total_sessions_goal').eq('patient_id', currentUser.id).single();
+    const meta = config ? config.total_sessions_goal : 20;
+    const { count } = await supabaseClient.from('sessions').select('*', { count: 'exact', head: true }).eq('patient_id', currentUser.id);
+    const completadas = count || 0;
+    const pct = meta > 0 ? Math.min(100, Math.round((completadas/meta)*100)) : 0;
+    document.getElementById('progressCircle').style.setProperty('--pct', pct);
+    document.getElementById('progressNum').textContent = `${completadas}/${meta}`;
+  }
+
+  // Comentarios que el fisio marcó como "Paciente". La base solo le entrega estos al paciente
+  // (los privados nunca llegan a su navegador).
+  let comentariosPaciente = {};   // session_id -> [texto, ...]
+  async function cargarComentarios(){
+    comentariosPaciente = {};
+    const { data, error } = await supabaseClient.from('session_comments')
+      .select('session_id, body, created_at').eq('patient_id', currentUser.id).eq('visibility', 'patient').order('created_at', { ascending: true });
+    if (error){ console.log('[comentarios] ' + (error.message || error.code)); return; }
+    (data || []).forEach(c => { (comentariosPaciente[c.session_id] = comentariosPaciente[c.session_id] || []).push(c.body); });
+  }
+
+  async function cargarSesiones(){
+    const COLUMNAS_PACIENTE = 'id, date, rms_mv, max_amplitude_mv, contraction_time_ms, total_jumps, points_earned, trophy, patient_comments, duration_seconds, levels_completed, levels_configured, jumps_per_level_configured, raw_signal, contractions';
+    const { data } = await supabaseClient.from('sessions').select(COLUMNAS_PACIENTE).eq('patient_id', currentUser.id).order('date', { ascending: true });
+    allSessions = data || [];
+    sessionIndex = allSessions.length - 1;
+    renderSesionActual();
+  }
+
+  // --- Tabs: Resultados / Comentarios ---
+  document.getElementById('tabResultados').onclick = () => { setTab('resultados'); };
+  document.getElementById('tabComentarios').onclick = () => { setTab('comentarios'); };
+
+  function setTab(tab){
+    document.getElementById('tabResultados').classList.toggle('active', tab === 'resultados');
+    document.getElementById('tabComentarios').classList.toggle('active', tab === 'comentarios');
+    tab === 'resultados' ? mostrarResultados() : mostrarComentarios();
+  }
+
+  function sesionActual(){ return allSessions[sessionIndex] || null; }
+
+  function escapar(t){ return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+  const fmtMv = (x) => x == null ? '—' : x.toFixed(2) + ' mV';
+  const fmtMs = (x) => x == null ? '—' : Math.round(x) + ' ms';
+  const fmtHz = (x) => x == null ? '—' : x.toFixed(1) + ' Hz';
+  const fmtDur = (seg) => seg == null ? '' : `${Math.floor(seg/60)}:${String(seg%60).padStart(2,'0')}`;
+
+  // Promedio y máximo de cada variable en UNA sesión (a partir de sus contracciones)
+  function estadisticasSesion(s){
+    const c = Array.isArray(s.contractions) ? s.contractions : [];
+    const stat = (arr) => arr.length ? { avg: arr.reduce((a,b) => a + b, 0) / arr.length, max: Math.max(...arr) } : null;
+    if (c.length){
+      return {
+        n: c.length, detallado: true,
+        rms: stat(c.map(x => x.rms)), amp: stat(c.map(x => x.amp)), dur: stat(c.map(x => x.dur)),
+        mnf: stat(c.map(x => x.mnf).filter(Number.isFinite)), mdf: stat(c.map(x => x.mdf).filter(Number.isFinite))
+      };
+    }
+    // Sesiones guardadas antes: solo hay un valor por variable
+    return {
+      n: 0, detallado: false,
+      rms: s.rms_mv != null ? { avg: s.rms_mv, max: null } : null,
+      amp: s.max_amplitude_mv != null ? { avg: null, max: s.max_amplitude_mv } : null,
+      dur: s.contraction_time_ms != null ? { avg: s.contraction_time_ms, max: null } : null,
+      mnf: null, mdf: null
+    };
+  }
+
+  function lecturaFrecuencias(s){
+    const c = (Array.isArray(s.contractions) ? s.contractions : [])
+      .filter(x => Number.isFinite(x?.mnf) && Number.isFinite(x?.mdf));
+    if (c.length < 4){
+      return 'No hay suficientes contracciones con datos de frecuencia para observar una tendencia en esta sesión.';
+    }
+
+    const mitad = Math.floor(c.length / 2);
+    const promedio = (items, clave) => items.reduce((suma, item) => suma + item[clave], 0) / items.length;
+    const inicio = c.slice(0, mitad);
+    const final = c.slice(-mitad);
+    const ambasBajan = ['mnf', 'mdf'].every(clave => promedio(final, clave) < promedio(inicio, clave));
+
+    return ambasBajan
+      ? 'Las frecuencias fueron menores hacia el final. A veces este patrón puede acompañar la fatiga muscular, pero por sí solo no la confirma.'
+      : 'En esta sesión no se observa una disminución conjunta de ambas frecuencias hacia el final. Esto no descarta fatiga.';
+  }
+
+  // Medalla según los niveles completados: oro 5 o más, plata 3-4, bronce 2 o menos
+  function trofeoPorNiveles(niveles, respaldo){
+    if (niveles == null) return respaldo || null;
+    if (niveles >= 5) return 'oro';
+    if (niveles >= 3) return 'plata';
+    return 'bronce';
+  }
+
+  function mostrarResultados(){
+    const s = sesionActual();
+    const content = document.getElementById('tabContent');
+    if (!s){ content.innerHTML = '<p class="empty-msg">Aún no tienes sesiones registradas.</p>'; return; }
+    const est = estadisticasSesion(s);
+    const fila = (nombre, st, fmt) => `<tr><td>${nombre}</td><td class="avg">${fmt(st?.avg)}</td><td class="max">${fmt(st?.max)}</td></tr>`;
+    content.innerHTML = `
+      <p class="sess-label">Sesión #${sessionIndex + 1}</p>
+      <div class="legend"><span class="chip avg">● Promedio</span><span class="chip max">● Máximo</span></div>
+      <table class="vars-table">
+        <tr><th></th><th class="avg">Promedio</th><th class="max">Máximo</th></tr>
+        ${fila('RMS', est.rms, fmtMv)}
+        ${fila('Amplitud', est.amp, fmtMv)}
+        ${fila('Contracción', est.dur, fmtMs)}
+        ${fila('MNF · frecuencia media', est.mnf, fmtHz)}
+        ${fila('MDF · frecuencia mediana', est.mdf, fmtHz)}
+      </table>
+      <div class="frequency-help">
+        <p><strong>Frecuencias del músculo</strong></p>
+        <p>MNF resume las frecuencias de la señal en un promedio; MDF indica su frecuencia central. Si ambas bajan durante varias contracciones, a veces puede relacionarse con fatiga. También influyen el esfuerzo y el sensor: estos datos orientan, pero no diagnostican.</p>
+        <p><strong>En esta sesión:</strong> ${lecturaFrecuencias(s)}</p>
+      </div>
+      ${est.detallado ? '' : '<p class="note">Sesión anterior: solo se guardó un valor por variable.</p>'}
+    `;
+  }
+
+  function mostrarComentarios(){
+    const s = sesionActual();
+    const content = document.getElementById('tabContent');
+    if (!s){ content.innerHTML = '<p class="empty-msg">Aún no tienes sesiones registradas.</p>'; return; }
+    const comentarios = [...(comentariosPaciente[s.id] || []), ...(s.patient_comments || [])];
+    content.innerHTML = `<p class="sess-label">Sesión #${sessionIndex + 1}</p>` + (comentarios.length === 0
+      ? '<p class="empty-msg">Tu fisioterapeuta no dejó comentarios en esta sesión.</p>'
+      : comentarios.map(c => `<div class="comment-item">💬 ${escapar(c)}</div>`).join(''));
+  }
+
+  // --- Navegador de sesiones ---
+  document.getElementById('navPrev').onclick = () => { if (sessionIndex > 0){ sessionIndex--; renderSesionActual(); } };
+  document.getElementById('navNext').onclick = () => { if (sessionIndex < allSessions.length-1){ sessionIndex++; renderSesionActual(); } };
+
+  const TROFEOS = { oro: 'Oro', plata: 'Plata', bronce: 'Bronce' };
+
+  function contenidoMedalla(tipo){
+    return `<span class="medal-wrap"><svg class="medal-art ${tipo}" viewBox="0 0 120 148" aria-hidden="true">
+      <path class="medal-ribbon" d="M37 78 57 87 46 137 23 119Z"></path>
+      <path class="medal-ribbon" d="m63 87 20-9 14 41-24 18Z"></path>
+      <circle class="medal-face" cx="60" cy="58" r="37"></circle>
+      <path class="medal-horseshoe" d="M45 42v19a15 15 0 0 0 30 0V42"></path>
+      <circle class="medal-nail" cx="45" cy="45" r="2.5"></circle>
+      <circle class="medal-nail" cx="75" cy="45" r="2.5"></circle>
+      <path class="medal-star" d="m60 36 5.2 10.5 11.6 1.7-8.4 8.2 2 11.6L60 62.5l-10.4 5.5 2-11.6-8.4-8.2 11.6-1.7Z"></path>
+    </svg></span>`;
+  }
+
+  function renderSesionActual(){
+    const s = sesionActual();
+    document.getElementById('navPrev').disabled = sessionIndex <= 0;
+    document.getElementById('navNext').disabled = sessionIndex >= allSessions.length-1;
+    document.getElementById('sessionTitle').textContent = s ? `Sesión #${sessionIndex+1}` : 'Sesión #—';
+
+    const t = s ? trofeoPorNiveles(s.levels_completed, s.trophy) : null;
+    if (t && Object.prototype.hasOwnProperty.call(TROFEOS, t)){
+      document.getElementById('trophyIcon').innerHTML = contenidoMedalla(t);
+      document.getElementById('trophyIcon').setAttribute('aria-label', `Medalla de ${TROFEOS[t].toLowerCase()}`);
+      document.getElementById('trophyLabel').textContent = TROFEOS[t];
+      const niv = s.levels_completed != null ? `${s.levels_completed} ${s.levels_completed === 1 ? 'nivel completado' : 'niveles completados'} · ` : '';
+      document.getElementById('trophySub').textContent = `${niv}${s.total_jumps ?? 0} buenas contracciones`;
+    } else {
+      document.getElementById('trophyIcon').textContent = '—';
+      document.getElementById('trophyIcon').setAttribute('aria-label', 'Sin medalla');
+      document.getElementById('trophyLabel').textContent = 'Sin sesiones';
+      document.getElementById('trophySub').textContent = '';
+    }
+
+    dibujarGraficaSesion(s);
+    if (document.getElementById('tabResultados').classList.contains('active')) mostrarResultados(); else mostrarComentarios();
+  }
+
+  // Dibuja la señal EMG que se REGISTRÓ en esa sesión (la guarda el juego al terminar)
+  function dibujarGraficaSesion(s){
+    const canvas = document.getElementById('emgCanvas');
+    const ctx = canvas.getContext('2d');
+    const rect = canvas.parentElement.getBoundingClientRect();
+    canvas.width = rect.width * devicePixelRatio;
+    canvas.height = rect.height * devicePixelRatio;
+    ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+    const w = rect.width, h = rect.height;
+    ctx.clearRect(0,0,w,h);
+
+    const aviso = (txt) => { ctx.fillStyle = '#8a9aa0'; ctx.font = '13px Inter'; ctx.textAlign = 'center'; ctx.fillText(txt, w/2, h/2); };
+    if (!s){ aviso('Aún no hay sesiones'); return; }
+    const senal = Array.isArray(s.raw_signal) ? s.raw_signal : null;
+    if (!senal || senal.length === 0){ aviso('Sin señal guardada para esta sesión'); return; }
+
+    const mIzq = 36, mDer = 6, mArriba = 6, mAbajo = 16;
+    const gw = w - mIzq - mDer, gh = h - mArriba - mAbajo, cy = mArriba + gh/2;
+    const maxAbs = Math.max(...senal.map(Math.abs), 0.01);
+
+    // ejes y etiquetas
+    ctx.strokeStyle = '#3b5560'; ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(mIzq, mArriba); ctx.lineTo(mIzq, mArriba + gh);   // eje vertical
+    ctx.moveTo(mIzq, cy); ctx.lineTo(mIzq + gw, cy);             // línea de cero
+    ctx.stroke();
+    ctx.fillStyle = '#8a9aa0'; ctx.font = '10px Inter';
+    ctx.textAlign = 'right';
+    ctx.fillText('+' + maxAbs.toFixed(1), mIzq - 4, mArriba + 8);
+    ctx.fillText('0', mIzq - 4, cy + 3);
+    ctx.fillText('-' + maxAbs.toFixed(1), mIzq - 4, mArriba + gh);
+    ctx.textAlign = 'left';  ctx.fillText('0 s', mIzq, h - 3);
+    ctx.textAlign = 'right'; ctx.fillText((fmtDur(s.duration_seconds) || 'tiempo') + ' min', mIzq + gw, h - 3);
+
+    // la señal
+    ctx.strokeStyle = '#9fe870'; ctx.lineWidth = 1.6; ctx.beginPath();
+    senal.forEach((v, i) => {
+      const x = mIzq + i * (gw / senal.length), y = cy - (v / maxAbs) * (gh / 2 - 2);
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+  }
+
+  // --- Modal del token de 3 dígitos ---
+  let tokenDigits = [];
+  const modal = document.getElementById('tokenModal');
+
+  document.getElementById('btnOpenToken').onclick = () => {
+    tokenDigits = [];
+    renderSlots();
+    document.getElementById('tokenError').textContent = '';
+    modal.classList.add('show');
+  };
+  document.getElementById('btnCloseModal').onclick = () => modal.classList.remove('show');
+
+  document.querySelectorAll('.keypad button[data-k]').forEach(btn => {
+    btn.onclick = () => {
+      if (tokenDigits.length >= 3) return;
+      tokenDigits.push(btn.dataset.k);
+      renderSlots();
+    };
+  });
+  document.getElementById('keyBack').onclick = () => { tokenDigits.pop(); renderSlots(); };
+  document.getElementById('keyConfirm').onclick = confirmarToken;
+
+  function renderSlots(){
+    for (let i = 0; i < 3; i++){
+      const slot = document.getElementById('slot'+i);
+      slot.textContent = tokenDigits[i] || '';
+      slot.classList.toggle('filled', !!tokenDigits[i]);
+    }
+  }
+
+  async function confirmarToken(){
+    const errorEl = document.getElementById('tokenError');
+    if (tokenDigits.length < 3){ errorEl.textContent = 'Completa los 3 dígitos'; return; }
+    if (!patientProfile.linked_physio_id){ errorEl.textContent = 'No tienes un fisioterapeuta vinculado'; return; }
+
+    const codigoIngresado = tokenDigits.join('');
+    const { data: token, error } = await supabaseClient
+      .from('access_tokens').select('code, expires_at').eq('physio_id', patientProfile.linked_physio_id).single();
+
+    if (error || !token){ errorEl.textContent = 'No hay un código activo'; return; }
+    if (new Date(token.expires_at) < new Date()){ errorEl.textContent = 'Ese código ya expiró'; return; }
+    if (codigoIngresado !== token.code){ errorEl.textContent = 'Código incorrecto'; return; }
+
+    await supabaseClient.from('live_session_state').upsert({
+      patient_id: currentUser.id, patient_ready: true, physio_authorized: false, session_active: false
+    });
+
+    // En cuanto el código es correcto, pasa directo a la pantalla del juego
+    // (ahí espera a que el fisio calibre y le dé Start Game — no puede
+    // iniciar el juego por sí mismo).
+    window.location.href = 'juego.html';
+  }
+
+  document.getElementById('btnLogout').onclick = async () => {
+    await supabaseClient.auth.signOut();
+    window.location.href = '../index.html';
+  };
+
+  init();
+</script>
+</body>
+</html>
