@@ -1,0 +1,1823 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Cyber Quack Rehab — Fisioterapeuta</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<link rel="stylesheet" href="../css/estilos.css" />
+<style>
+  body{ display: block; padding: 24px; align-items: initial; justify-content: initial; overflow-y: auto; }
+  .topbar{ display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+  .topbar .who p{ margin: 0; }
+  .topbar .who .label{ font-size: 12px; color: var(--ink-dim); }
+  .topbar .who .name{ font-size: 18px; font-weight: 700; font-family: var(--display); color: var(--duck-yellow); }
+
+  .grid{ display: grid; grid-template-columns: 1.3fr 1fr; gap: 20px; align-items: start; }
+  .panel{ background: rgba(14,74,87,0.85); border: 2px solid var(--panel-line); border-radius: 18px; padding: 18px; }
+  .panel h3{ font-family: var(--display); font-size: 14px; margin: 0 0 12px; color: var(--duck-orange); }
+  .patient-heading-duck{ width: 24px; height: 26px; object-fit: contain; vertical-align: middle; }
+
+  .patient-row{
+    background: rgba(0,0,0,0.2); border: 1px solid var(--panel-line); border-radius: 12px;
+    padding: 12px 14px; display: flex; justify-content: space-between; align-items: center;
+    cursor: pointer; margin-bottom: 10px; transition: border-color .15s;
+  }
+  .patient-row:hover{ border-color: var(--duck-yellow); }
+  .patient-row .left{ display: flex; align-items: center; gap: 10px; }
+  .avatar{ width: 36px; height: 36px; border-radius: 50%; background: var(--duck-yellow); color: #1a1200; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; }
+  .patient-row .name{ font-weight: 600; font-size: 14px; margin: 0; }
+  .patient-row .meta{ font-size: 12px; color: var(--ink-dim); margin: 0; }
+  .patient-row.ready{ border-color: #9fe870; }
+
+  .token-box{ text-align: center; }
+  .token-box .code{ font-size: 40px; font-weight: 800; letter-spacing: 6px; font-family: var(--display); color: var(--duck-yellow); margin: 0; }
+  .token-box .countdown{ font-size: 12px; color: var(--ink-dim); margin: 2px 0 14px; }
+  .status-pill{ display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 999px; font-size: 12.5px; font-weight: 600; }
+  .status-pill.waiting{ background: rgba(255,205,60,0.15); color: var(--duck-yellow); }
+  .status-pill.ready{ background: rgba(159,232,112,0.15); color: #9fe870; }
+
+  /* --- sesión activa --- */
+  #viewSession{ display: none; }
+  .session-top{ display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+  .session-top .pname{ font-size: 20px; font-weight: 700; margin: 0; }
+  .session-top .plabel{ font-size: 13px; color: var(--ink-dim); margin: 0; }
+
+  .session-grid{ display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
+  .scope{ background: linear-gradient(180deg, rgba(0,0,0,0.32), rgba(0,0,0,0.18)); border: 1px solid var(--panel-line); border-radius: 14px; height: clamp(300px, 46vh, 460px); position: relative; margin-bottom: 14px; box-shadow: inset 0 0 0 1px rgba(255,205,60,0.05); }
+  canvas{ width: 100%; height: 100%; display: block; }
+  .vars-row{ display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 14px; }
+  .vars-titulo{ font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-dim); font-weight: 700; margin: 2px 2px 6px; }
+  .var-card{ background: rgba(0,0,0,0.22); border: 1px solid var(--panel-line); border-radius: 12px; padding: 10px 12px; }
+  .var-card .label{ font-size: 11.5px; color: var(--ink-dim); margin: 0 0 2px; font-weight: 600; }
+  .var-card .value{ font-size: 22px; font-weight: 800; margin: 0; font-family: var(--display); color: var(--ink); line-height: 1.15; }
+  .var-card .sub{ font-size: 11px; color: var(--ink-dim); margin: 3px 0 0; min-height: 14px; }
+  .var-card.fatiga .value{ color: #8fd3ff; }
+  #varTendencia.baja{ color: var(--duck-orange); }
+  #sparkMnf{ width: 100%; height: 24px; display: block; margin-top: 3px; }
+
+  .right-col{ display: flex; flex-direction: column; justify-content: center; gap: 14px; }
+  .comment-box{ background: rgba(0,0,0,0.2); border-radius: 12px; padding: 12px; }
+  .comment-target{ display: flex; gap: 8px; margin-bottom: 8px; }
+  .comment-target button{ flex: 1; font-size: 12px; padding: 7px; }
+  .comment-target button.active{ background: var(--duck-yellow); color: #1a1200; border-color: var(--duck-yellow); }
+  textarea{
+    width: 100%; min-height: 60px; resize: vertical; background: rgba(0,0,0,0.25);
+    border: 1px solid var(--panel-line); border-radius: 8px; color: var(--ink); padding: 8px; font-family: var(--sans); margin-bottom: 8px;
+  }
+  .pend-x{ background: none; border: none; color: var(--ink-dim); cursor: pointer; font-size: 13px; }
+  .comment-item{ display: flex; align-items: center; gap: 6px; font-size: 12px; background: rgba(0,0,0,0.15); border-radius: 8px; padding: 6px 10px; margin-bottom: 6px; }
+  .history-row{ display: flex; background: rgba(0,0,0,0.2); border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; font-size: 12.5px; }
+  .history-row .dim{ color: var(--ink-dim); }
+  .history-row input, .history-row select{ font-family: var(--sans); }
+  .hist-overlay{ display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); align-items:center; justify-content:center; z-index:40; padding:20px; }
+  .hist-overlay.show{ display:flex; }
+  .hist-box{ width:100%; max-width:900px; max-height:90vh; overflow-y:auto; background:var(--pond-deep); border:2px solid var(--duck-yellow); border-radius:18px; padding:22px; position:relative; }
+  .hist-close{ position:absolute; top:12px; right:14px; background:none; border:none; color:var(--ink); font-size:20px; cursor:pointer; }
+  .comment-box.slim{ margin-top: 10px; padding: 8px 10px; }
+  .slim-top{ display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .slim-title{ font-size: 12px; font-weight: 600; white-space: nowrap; }
+  .pills{ display: inline-flex; gap: 4px; }
+  .pill{ font-size: 10.5px; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--panel-line); background: rgba(0,0,0,0.2); color: var(--ink); cursor: pointer; font-family: var(--sans); }
+  .pill.active{ background: var(--duck-yellow); color: #1a1200; border-color: var(--duck-yellow); font-weight: 700; }
+  .slim-row{ display: flex; gap: 6px; align-items: stretch; }
+  .slim-row textarea{ flex: 1; min-height: 30px; max-height: 84px; margin: 0; padding: 6px 8px; font-size: 12px; line-height: 1.3; resize: none; overflow-y: auto; }
+  .slim-add{ padding: 0 12px; font-size: 16px; line-height: 1; }
+  .slim-note{ font-size: 10.5px; color: var(--ink-dim); margin: 4px 0 0; }
+  #liveCommentList .comment-item{ font-size: 11.5px; padding: 4px 8px; margin: 5px 0 0; }
+  #liveCommentList .comment-item span:nth-child(2){ line-height: 1.3; }
+  .u-row{ margin-top: 7px; }
+  .u-head{ display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 11.5px; }
+  .u-head em{ font-style: normal; color: var(--ink-dim); font-size: 10px; margin-left: 4px; }
+  .u-head b{ color: var(--duck-yellow); font-family: var(--display); font-size: 12px; white-space: nowrap; }
+  .u-row input[type=range]{ width: 100%; margin: 3px 0 0; }
+  .u-row input[type=range]:disabled{ opacity: 0.4; }
+  #histTitle{ display: inline-flex; align-items: center; justify-content: center; gap: 7px; text-align: center; }
+  .medal-wrap{ position: relative; display: inline-grid; place-items: center; width: 36px; height: 44px; flex: 0 0 auto; animation: medalFloat 3s ease-in-out infinite; }
+  .medal-art{ width: 100%; height: 100%; overflow: visible; }
+  .medal-ribbon{ fill: #ac3d32; stroke: #f5c46b; stroke-width: 2; }
+  .medal-face{ stroke: #fff0aa; stroke-width: 3; }
+  .medal-horseshoe{ fill: none; stroke: #75401d; stroke-width: 8; stroke-linecap: round; stroke-linejoin: round; }
+  .medal-nail{ fill: #f8dda0; }
+  .medal-star{ fill: #fff0aa; stroke: #75401d; stroke-width: 2; stroke-linejoin: round; }
+  .medal-art.oro .medal-face{ fill: #e6a921; }
+  .medal-art.plata .medal-face{ fill: #a9b5c2; }
+  .medal-art.bronce .medal-face{ fill: #bd7442; }
+  .medal-art.plata .medal-horseshoe{ stroke: #485663; }
+  .medal-art.bronce .medal-horseshoe{ stroke: #613b2b; }
+  /* Brillo: círculo fijo encima de la cara de la medalla (cx 60, cy 58, r 37 del dibujo 120×148);
+     lo que se mueve es el degradado de adentro, así nunca se sale del círculo */
+  /* Cuenta regresiva grande de la calibración, encima de la gráfica (la sigue en vivo desde el paciente) */
+  #calibCountdownFisio{ display: none; position: absolute; inset: 0; z-index: 3; border-radius: 14px; background: rgba(8,24,30,.68); flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 16px; }
+  #calibCountdownFisio.show{ display: flex; }
+  #calibCountdownFisio .cd-titulo{ font-family: var(--display); color: var(--duck-yellow); font-size: clamp(18px, 2.2vw, 24px); font-weight: 800; margin: 0 0 12px; }
+  #calibCountdownFisio .cd-ring{ position: relative; width: clamp(130px, 18vw, 190px); aspect-ratio: 1; display: grid; place-items: center; }
+  #calibCountdownFisio .cd-ring svg{ position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
+  #calibCountdownFisio .cd-ring circle{ fill: none; stroke-width: 10; }
+  #calibCountdownFisio .cd-fondo{ stroke: rgba(255,255,255,.12); }
+  #calibCountdownFisio .cd-arco{ stroke: var(--duck-yellow); stroke-linecap: round; stroke-dasharray: 100; stroke-dashoffset: 0; }
+  #calibCountdownFisio .cd-num{ font-family: var(--display); font-weight: 800; color: #fff; font-size: clamp(70px, 10vw, 110px); line-height: 1; }
+  #calibCountdownFisio .cd-num.tick{ animation: cdTick .5s ease-out; }
+  @keyframes cdTick{ from{ transform: scale(1.35); opacity: .4; } to{ transform: scale(1); opacity: 1; } }
+  #calibCountdownFisio .cd-sub{ color: var(--ink-dim); font-size: 13px; margin: 12px 0 0; }
+
+  .medal-wrap::after{ content: ""; position: absolute; top: 14.2%; left: 50%; height: 50%; aspect-ratio: 1; transform: translateX(-50%); border-radius: 50%; pointer-events: none;
+    background: linear-gradient(115deg, transparent 40%, rgba(255,255,255,.6) 50%, transparent 60%) no-repeat; background-size: 300% 100%; background-position: 100% 0;
+    animation: medalShine 3.8s ease-in-out infinite; }
+  @keyframes medalShine{ 0%,55%{ background-position: 100% 0; } 78%,100%{ background-position: 0 0; } }
+  @keyframes medalFloat{ 0%,100%{ translate: 0 0; } 50%{ translate: 0 -3px; } }
+  @media (max-width: 1000px){
+    body{ padding: 16px; }
+    .grid{ grid-template-columns: minmax(0,1fr); gap: 14px; }
+    .session-grid{ grid-template-columns: minmax(0,1fr); }
+    .right-col{ display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); align-content: start; }
+    #boxUmbrales, #btnStartGame, #btnTerminarSesion{ grid-column: 1 / -1; }
+    .scope{ height: clamp(250px, 42vh, 400px); }
+  }
+  @media (max-width: 640px){
+    body{ padding: 12px; }
+    .topbar{ align-items: flex-start; gap: 10px; }
+    .topbar .who{ min-width: 0; }
+    .topbar .who .name{ font-size: 16px; }
+    .topbar .who .label{ overflow-wrap: anywhere; }
+    .panel{ padding: 14px; }
+    .session-top{ gap: 10px; }
+    .session-top .pname{ font-size: 17px; overflow-wrap: anywhere; }
+    .vars-row{ grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; }
+    .vars-row .var-card:last-child{ grid-column: 1 / -1; }
+    .var-card{ min-width: 0; padding: 9px; }
+    .var-card .value{ font-size: clamp(18px, 5vw, 22px); overflow-wrap: anywhere; }
+    .right-col{ grid-template-columns: minmax(0,1fr); }
+    .hist-overlay{ padding: 10px; }
+    .hist-box{ padding: 18px 14px; }
+    .history-row{ flex-wrap: wrap; gap: 8px; }
+    .history-row > *{ max-width: 100%; }
+    #histTitle{ font-size: 12px; }
+    .comment-target{ flex-wrap: wrap; }
+    .u-head{ align-items: flex-start; flex-wrap: wrap; }
+  }
+  @media (prefers-reduced-motion: reduce){
+    *, *::before, *::after{ scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+  }
+</style>
+</head>
+<body>
+
+  <!-- ============ VISTA: DASHBOARD PRINCIPAL ============ -->
+  <div id="viewDashboard">
+    <div class="topbar">
+      <div class="who">
+        <p class="label">Fisioterapeuta</p>
+        <p class="name" id="physioName">Cargando...</p>
+        <p class="label" style="margin-top:4px;">Código de invitación (para nuevos pacientes): <span id="inviteCodeDisplay" style="color:var(--duck-yellow); font-family:var(--display); font-weight:700;">...</span></p>
+      </div>
+      <button class="btn" id="btnLogout">Cerrar sesión</button>
+    </div>
+
+    <div class="grid">
+      <div class="panel">
+        <h3><img class="patient-heading-duck" src="../patient/assets/pato-reposo.svg" alt="" aria-hidden="true" onerror="this.hidden=true; this.nextElementSibling.hidden=false"><span hidden>🦆</span> Mis pacientes</h3>
+        <div id="patientList"><p class="login-error" style="color:var(--ink-dim);">Cargando pacientes...</p></div>
+      </div>
+
+      <div class="panel token-box">
+        <h3 style="text-align:left;">🔑 Código de acceso</h3>
+        <p class="code" id="tokenCode">--</p>
+        <p class="countdown" id="tokenCountdown">Generando...</p>
+        <div class="status-pill waiting" id="confirmStatus">Esperando confirmación</div>
+        <button class="btn primary" id="btnDarAcceso" style="display:none; width:100%; margin-top:10px; padding:12px; font-weight:800;">✅ Dar acceso</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ VISTA: SESIÓN ACTIVA ============ -->
+  <div id="viewSession">
+    <div class="session-top">
+      <div>
+        <p class="plabel">Paciente</p>
+        <p class="pname" id="sessionPatientName">—</p>
+      </div>
+      <button class="btn" id="btnExitSession">Salir</button>
+    </div>
+
+    <h3 id="sessionTitle" style="font-family: var(--display); color: var(--duck-orange);">Sesión #—</h3>
+
+    <div class="session-grid">
+      <div>
+        <div class="scope"><canvas id="emgCanvas"></canvas>
+          <div id="calibCountdownFisio" role="timer" aria-live="assertive">
+            <p class="cd-titulo">Calibrando · contracción máxima</p>
+            <div class="cd-ring">
+              <svg viewBox="0 0 120 120" aria-hidden="true">
+                <circle class="cd-fondo" cx="60" cy="60" r="52"></circle>
+                <circle class="cd-arco" id="cdArcoFisio" cx="60" cy="60" r="52" pathLength="100"></circle>
+              </svg>
+              <span class="cd-num" id="cdNumFisio">5</span>
+            </div>
+            <p class="cd-sub" id="cdSubFisio">El paciente está contrayendo al máximo</p>
+          </div>
+        </div>
+        <p class="vars-titulo">Intensidad</p>
+        <div class="vars-row">
+          <div class="var-card"><p class="label">RMS</p><p class="value" id="varRms">— mV</p><p class="sub" id="varRmsSub">en la piel</p></div>
+          <div class="var-card"><p class="label">Amplitud máxima</p><p class="value" id="varPico">— mV</p><p class="sub" id="varPicoSub">máximo de la envolvente</p></div>
+          <div class="var-card"><p class="label">Tiempo contracción</p><p class="value" id="varContraccion">— ms</p><p class="sub">última contracción</p></div>
+        </div>
+        <p class="vars-titulo">Fatiga · espectro de cada contracción</p>
+        <div class="vars-row">
+          <div class="var-card fatiga"><p class="label">MNF · frecuencia media</p><p class="value" id="varMnf">— Hz</p><p class="sub" id="varMnfSub">esperando contracción</p></div>
+          <div class="var-card fatiga"><p class="label">MDF · frecuencia mediana</p><p class="value" id="varMdf">— Hz</p><p class="sub" id="varMdfSub">esperando contracción</p></div>
+          <div class="var-card fatiga" title="Cambio de la MNF de la última repetición contra la primera. Si baja, el músculo puede estar fatigándose."><p class="label">Tendencia de la MNF</p><p class="value" id="varTendencia">—</p><svg id="sparkMnf" viewBox="0 0 100 26" preserveAspectRatio="none"></svg></div>
+        </div>
+        <p style="font-size:12.5px; color:var(--ink-dim); margin:6px 0 0;">Estado: <span id="varEstado" style="color:var(--ink);">—</span></p>
+
+        <div class="comment-box slim">
+          <div class="slim-top">
+            <span class="slim-title" title="Se guardan junto con la sesión cuando termine. 🔒 solo tú · 📨 lo verá el paciente">💬 Comentarios de esta sesión</span>
+            <span class="pills">
+              <button id="btnLiveTargetPrivate" class="pill active" title="Solo lo ves tú">🔒 Privado</button>
+              <button id="btnLiveTargetPatient" class="pill" title="El paciente lo verá en su historial">📨 Paciente</button>
+            </span>
+          </div>
+          <div class="slim-row">
+            <textarea id="liveCommentInput" rows="1" placeholder="Escribe y presiona Enter para agregar"></textarea>
+            <button class="btn slim-add" id="btnLiveAddComment" title="Agregar comentario">+</button>
+          </div>
+          <div id="liveCommentList"></div>
+          <p id="liveCommentCount" class="slim-note"></p>
+          <p id="liveCommentEstado" class="slim-note" style="color:#ffb3b3;"></p>
+          <button class="btn" id="btnLiveRetry" style="display:none; width:100%; font-size:11.5px; padding:6px; margin-top:4px;">Reintentar guardar comentarios</button>
+        </div>
+      </div>
+
+      <div class="right-col">
+        <div class="comment-box slim" id="boxSensor">
+          <div class="slim-top">
+            <span class="slim-title" title="Escribe el código del sensor (QUACK-XXXX) y presiona Conectar: queda conectado a este paciente. Si estaba con otro paciente, se le quita.">📡 Sensor de este paciente</span>
+            <button class="pill" id="btnSensorDesvincular" style="display:none;">Desconectar</button>
+          </div>
+          <p id="sensorEstado" class="slim-note" style="font-size:11.5px;"></p>
+          <div class="slim-row" id="sensorSeleccion">
+            <select id="sensorSelect" style="flex:1; min-width:0; background:rgba(0,0,0,0.25); border:1px solid var(--panel-line); border-radius:6px; color:var(--ink); padding:6px 8px; font-size:12px;"></select>
+            <button class="btn slim-add" id="btnSensorUsar" style="font-size:12px; padding:0 12px;">Usar</button>
+            <button class="pill" id="btnSensorEliminar" title="Quitar el sensor elegido de mi lista" style="padding:0 8px;">🗑</button>
+          </div>
+          <details id="sensorNuevoDetalle" style="margin-top:6px;">
+            <summary class="slim-note" style="cursor:pointer; margin:0;">Conectar un sensor con su código</summary>
+            <div class="slim-row" id="sensorFormulario" style="margin-top:4px; flex-wrap:wrap;">
+              <input type="text" id="sensorCodigoInput" placeholder="Código del sensor (QUACK-XXXX)" maxlength="14" autocomplete="off"
+                     style="flex:1; min-width:110px; background:rgba(0,0,0,0.25); border:1px solid var(--panel-line); border-radius:6px; color:var(--ink); padding:6px 8px; font-size:12px; text-transform:uppercase;">
+              <button class="btn slim-add" id="btnSensorVincular" style="font-size:12px; padding:0 12px;">Conectar</button>
+            </div>
+          </details>
+          <p id="sensorMensaje" class="slim-note" style="min-height:13px;"></p>
+        </div>
+
+        <div class="comment-box">
+          <p style="font-size:12px; color:var(--ink-dim); margin:0 0 10px; font-weight:600;">Configuración del juego</p>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <span style="font-size:12.5px;">Niveles</span>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <button class="btn" id="btnNivelesMenos" style="padding:4px 10px;">−</button>
+              <span id="valorNiveles" style="min-width:20px; text-align:center; font-weight:700; font-family:var(--display);">5</span>
+              <button class="btn" id="btnNivelesMas" style="padding:4px 10px;">+</button>
+            </div>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:12.5px;">Saltos por nivel</span>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <button class="btn" id="btnSaltosMenos" style="padding:4px 10px;">−</button>
+              <span id="valorSaltos" style="min-width:20px; text-align:center; font-weight:700; font-family:var(--display);">5</span>
+              <button class="btn" id="btnSaltosMas" style="padding:4px 10px;">+</button>
+            </div>
+          </div>
+          <p style="font-size:10.5px; color:var(--ink-dim); margin:10px 0 0;">El último nivel siempre usa la zona de "buen salto" más exigente.</p>
+          <p id="configEstado" style="font-size:10.5px; color:var(--duck-yellow); margin:6px 0 0; min-height:14px;"></p>
+        </div>
+
+        <div class="comment-box" style="text-align:center;">
+          <p style="font-size:12px; color:var(--ink-dim); margin:0 0 8px;" id="mvcStatus">Cargando calibración...</p>
+          <button class="btn" id="btnCalibrar" style="width:100%; font-size:12.5px;">Calibrar (5 s)</button>
+        </div>
+
+        <div class="comment-box slim" id="boxUmbrales">
+          <div class="slim-top">
+            <span class="slim-title" title="Cada porcentaje es una fracción del MVC (la contracción máxima del paciente al calibrar)">🎚️ Umbrales de contracción</span>
+            <button class="pill" id="btnUmbralesReset" title="Volver a los valores predeterminados: 25 / 55 / 60 %">Restablecer</button>
+          </div>
+          <p id="umbralesRef" class="slim-note"></p>
+          <div class="u-row">
+            <div class="u-head"><span>El pato salta desde <em>predet. 25%</em></span><b id="valUmbralMin"></b></div>
+            <input type="range" id="slUmbralMin" min="5" max="90" step="1" style="accent-color:#e0635a;">
+          </div>
+          <div class="u-row">
+            <div class="u-head"><span>Buen salto desde <em>predet. 55%</em></span><b id="valUmbralGood"></b></div>
+            <input type="range" id="slUmbralGood" min="10" max="100" step="1" style="accent-color:#6fcf6a;">
+          </div>
+          <div class="u-row">
+            <div class="u-head"><span>Buen salto, último nivel <em>predet. 60%</em></span><b id="valUmbralFinal"></b></div>
+            <input type="range" id="slUmbralFinal" min="10" max="100" step="1" style="accent-color:#3fa44a;">
+          </div>
+          <p id="umbralesEstado" class="slim-note" style="min-height:13px;"></p>
+        </div>
+
+        <button class="btn primary" id="btnStartGame" style="padding:14px;" disabled>▶ Start Game</button>
+        <div style="display:flex; gap:8px;">
+          <button class="btn" id="btnPausarRemoto" style="flex:1; font-size:12.5px;" disabled>⏸ Pausa</button>
+          <button class="btn" id="btnReanudarRemoto" style="flex:1; font-size:12.5px;" disabled>▶ Reanuda</button>
+        </div>
+        <button class="btn" id="btnTerminarSesion" style="padding:11px; font-size:12.5px; border-color:var(--danger); color:#ffb3b3;" disabled>⏹ Terminar y guardar</button>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top:20px; display:flex; justify-content:space-between; align-items:center; gap:12px;">
+      <span style="font-size:13px; color:var(--ink-dim);">Sesiones anteriores, promedios y comentarios de este paciente</span>
+      <button class="btn primary" id="btnVerHistorial">📋 Ver historial</button>
+    </div>
+
+    <div class="hist-overlay" id="historyModal">
+      <div class="hist-box">
+        <button class="hist-close" id="btnCerrarHistorial">✕</button>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; padding-right:34px;">
+        <h3 style="margin:0;">📋 Historial</h3>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button class="btn" id="btnPdfSesion" style="font-size:12px;">⬇ PDF de esta sesión</button>
+          <button class="btn" id="btnPdfCompleto" style="font-size:12px;">⬇ PDF completo</button>
+        </div>
+      </div>
+
+      <div class="session-nav" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <button id="histNavPrev" style="background:none; border:none; color:var(--ink-dim); font-size:20px; cursor:pointer;">‹</button>
+        <span id="histTitle" style="font-family:var(--display); color:var(--duck-yellow);">Sesión #—</span>
+        <button id="histNavNext" style="background:none; border:none; color:var(--ink-dim); font-size:20px; cursor:pointer;">›</button>
+      </div>
+
+      <div class="session-grid" style="margin-bottom:16px;">
+        <div class="scope" style="height:160px;"><canvas id="histCanvas"></canvas></div>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <table style="width:100%; font-size:12.5px; border-collapse:collapse;">
+            <tr><td style="color:var(--ink-dim); padding:4px 0;">RMS</td><td style="text-align:right;" id="histRms">—</td></tr>
+            <tr><td style="color:var(--ink-dim); padding:4px 0;">Amplitud</td><td style="text-align:right;" id="histAmp">—</td></tr>
+            <tr><td style="color:var(--ink-dim); padding:4px 0;">Contracción</td><td style="text-align:right;" id="histCont">—</td></tr>
+            <tr><td style="color:var(--ink-dim); padding:4px 0;">Duración</td><td style="text-align:right;" id="histDur">—</td></tr>
+            <tr><td style="color:var(--ink-dim); padding:4px 0;">Niveles / saltos usados</td><td style="text-align:right;" id="histParams">—</td></tr>
+          </table>
+        </div>
+      </div>
+
+      <div style="background:rgba(0,0,0,0.2); border-radius:10px; padding:12px; margin-bottom:20px;">
+        <p id="aggTitle" style="font-size:12px; color:var(--ink-dim); margin:0 0 8px; font-weight:600;">Promedio y máximo de esta sesión</p>
+        <table style="width:100%; font-size:12.5px; border-collapse:collapse;">
+          <tr><td></td><td style="text-align:right; color:var(--ink-dim);">Promedio</td><td style="text-align:right; color:var(--ink-dim);">Máximo</td></tr>
+          <tr><td style="color:var(--ink-dim);">RMS</td><td style="text-align:right;" id="aggRmsAvg">—</td><td style="text-align:right;" id="aggRmsMax">—</td></tr>
+          <tr><td style="color:var(--ink-dim);">Amplitud</td><td style="text-align:right;" id="aggAmpAvg">—</td><td style="text-align:right;" id="aggAmpMax">—</td></tr>
+          <tr><td style="color:var(--ink-dim);">Contracción</td><td style="text-align:right;" id="aggContAvg">—</td><td style="text-align:right;" id="aggContMax">—</td></tr>
+          <tr><td style="color:var(--ink-dim);">MNF</td><td style="text-align:right;" id="aggMnfAvg">—</td><td style="text-align:right;" id="aggMnfMax">—</td></tr>
+          <tr><td style="color:var(--ink-dim);">MDF</td><td style="text-align:right;" id="aggMdfAvg">—</td><td style="text-align:right;" id="aggMdfMax">—</td></tr>
+        </table>
+        <p id="aggMnfTrend" style="font-size:11.5px; color:var(--ink-dim); margin:8px 0 0;">Tendencia de la MNF: —</p>
+      </div>
+
+      <h3 id="commentsTitle" style="margin:0 0 10px;">💬 Comentarios de esta sesión</h3>
+      <div id="commentsList"></div>
+      </div>
+    </div>
+  </div>
+
+<script src="../js/supabaseClient.js"></script>
+<script src="../js/sensorEmg.js"></script>
+<script>
+  let currentUser = null;
+  let currentPatients = [];
+  let selectedPatient = null;
+  let tokenTimer = null;
+  let realtimeChannel = null;
+
+  function show(viewId){
+    document.getElementById('viewDashboard').style.display = viewId === 'viewDashboard' ? 'block' : 'none';
+    document.getElementById('viewSession').style.display = viewId === 'viewSession' ? 'block' : 'none';
+  }
+
+  async function init(){
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    if (!user){ window.location.href = '../index.html'; return; }
+    currentUser = user;
+
+    const { data: profile } = await supabaseClient.from('profiles').select('full_name, invite_code').eq('id', user.id).single();
+    document.getElementById('physioName').textContent = profile ? profile.full_name : 'Fisioterapeuta';
+    document.getElementById('inviteCodeDisplay').textContent = profile?.invite_code || '—';
+
+    await cargarPacientes();
+    await iniciarTokenRotativo();
+    suscribirEstadoEnVivo();
+  }
+
+  async function cargarPacientes(){
+    const { data: patients, error } = await supabaseClient
+      .from('profiles')
+      .select('id, full_name')
+      .eq('linked_physio_id', currentUser.id);
+
+    if (error){ console.error(error); return; }
+    currentPatients = patients || [];
+
+    const container = document.getElementById('patientList');
+    if (currentPatients.length === 0){
+      container.innerHTML = '<p style="color:var(--ink-dim); font-size:13px;">Aún no tienes pacientes vinculados. Comparte tu código de invitación.</p>';
+      return;
+    }
+
+    container.innerHTML = '';
+    for (const p of currentPatients){
+      const { count } = await supabaseClient.from('sessions').select('*', { count: 'exact', head: true }).eq('patient_id', p.id);
+
+      let { data: config } = await supabaseClient.from('game_config').select('total_sessions_goal').eq('patient_id', p.id).single();
+      if (!config){
+        await supabaseClient.from('game_config').insert({ patient_id: p.id });
+        config = { total_sessions_goal: 20 };
+      }
+
+      const initials = p.full_name.split(' ').map(w => w[0]).slice(0,2).join('').toUpperCase();
+      const row = document.createElement('div');
+      row.className = 'patient-row';
+      row.innerHTML = `
+        <div class="left">
+          <div class="avatar">${escapar(initials)}</div>
+          <div>
+            <p class="name">${escapar(p.full_name)}</p>
+            <p class="meta">Sesiones completadas: ${count || 0}/${config.total_sessions_goal}</p>
+          </div>
+        </div>
+        <span>›</span>
+      `;
+      row.onclick = () => abrirSesion(p, (count || 0) + 1);
+      container.appendChild(row);
+    }
+  }
+
+  // --- token rotativo de 2 dígitos, cambia cada 5 minutos ---
+  async function iniciarTokenRotativo(){
+    async function generarNuevoToken(){
+      const code = String(Math.floor(100 + Math.random()*900)); // 3 dígitos: 100-999
+      const expiresAt = new Date(Date.now() + 5*60*1000).toISOString();
+      await supabaseClient.from('access_tokens').upsert({ physio_id: currentUser.id, code, expires_at: expiresAt });
+      document.getElementById('tokenCode').textContent = code;
+      return expiresAt;
+    }
+
+    let expiresAt = await generarNuevoToken();
+
+    if (tokenTimer) clearInterval(tokenTimer);
+    tokenTimer = setInterval(async () => {
+      const remaining = new Date(expiresAt) - Date.now();
+      if (remaining <= 0){
+        expiresAt = await generarNuevoToken();
+        return;
+      }
+      const mins = Math.floor(remaining / 60000);
+      const secs = Math.floor((remaining % 60000) / 1000);
+      document.getElementById('tokenCountdown').textContent = `Cambia en ${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
+    }, 1000);
+  }
+
+  // --- escucha en tiempo real si algún paciente confirmó su token ---
+  let pollingConfirmacionId = null;
+
+  function suscribirEstadoEnVivo(){
+    if (realtimeChannel) supabaseClient.removeChannel(realtimeChannel);
+    realtimeChannel = supabaseClient
+      .channel('live_session_state_physio')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'live_session_state' }, (payload) => {
+        aplicarEstadoConfirmacion(payload.new.patient_id, payload.new.patient_ready);
+      })
+      .subscribe();
+
+    // Respaldo: por si Realtime no llega a tiempo o falla, revisamos cada 3s
+    if (pollingConfirmacionId) clearInterval(pollingConfirmacionId);
+    pollingConfirmacionId = setInterval(async () => {
+      if (currentPatients.length === 0) return;
+      const ids = currentPatients.map(p => p.id);
+      const { data } = await supabaseClient
+        .from('live_session_state').select('patient_id, patient_ready').in('patient_id', ids);
+      (data || []).forEach(row => {
+        if (row.patient_ready) aplicarEstadoConfirmacion(row.patient_id, true);
+      });
+    }, 3000);
+  }
+
+  let pacienteListoId = null;
+
+  function aplicarEstadoConfirmacion(patientId, patientReady){
+    const esMiPaciente = currentPatients.some(p => p.id === patientId);
+    if (!esMiPaciente || !patientReady) return;
+    const pill = document.getElementById('confirmStatus');
+    pill.className = 'status-pill ready';
+    const paciente = currentPatients.find(p => p.id === patientId);
+    pill.textContent = `${paciente.full_name} confirmó, listo para iniciar`;
+
+    pacienteListoId = patientId;
+    document.getElementById('btnDarAcceso').style.display = 'block';
+  }
+
+  document.getElementById('btnDarAcceso').onclick = async () => {
+    if (!pacienteListoId) return;
+    const btn = document.getElementById('btnDarAcceso');
+    btn.disabled = true; btn.textContent = 'Otorgando...';
+
+    await supabaseClient.from('live_session_state').upsert({
+      patient_id: pacienteListoId, patient_ready: true, physio_authorized: true, session_active: true
+    });
+
+    const pill = document.getElementById('confirmStatus');
+    pill.className = 'status-pill ready';
+    pill.textContent = 'Acceso otorgado — el paciente ya puede jugar';
+    btn.style.display = 'none';
+    btn.disabled = false; btn.textContent = '✅ Dar acceso';
+  };
+
+  // ============================================================
+  // Pantalla de sesión de un paciente específico
+  // ============================================================
+  let bufferEmg = [];
+  let picoActualSesion = 0;
+  // Gráfica en vivo del sensor: SOLO la envolvente, eje fijo y ventana más larga (avanza más lento)
+  // Gráfica en vivo: la envolvente en VOLTS a la SALIDA del circuito (lo mismo que dibuja Teleplot), escala automática
+  const GRAFICA_MIN_V = 0.1;         // la escala nunca baja de 0.1 V (así el ruido en reposo no llena toda la gráfica)
+  let escalaGraficaV = GRAFICA_MIN_V;
+  // paso "redondo" para la rejilla: 1, 2 o 5 por potencia de 10
+  function pasoRedondo(x){
+    const p = Math.pow(10, Math.floor(Math.log10(x)));
+    return [1, 2, 5, 10].map(m => m * p).find(v => v >= x);
+  }
+  const GRAFICA_SEGUNDOS = 5;        // segundos visibles en la gráfica (más segundos = avanza más lento)
+  const procSensor = new SensorEmg.ProcesadorSensorEmg({ segundosVentana: GRAFICA_SEGUNDOS });   // señal real del ESP32
+  let sessionBroadcastChannel = null;
+  let sensorChannel = null, sensorCodigoActual = null, ultimaSenalSensorTs = 0;
+  let drawingActive = false;
+  let turnoDibujo = 0;
+
+  // --- para calcular tiempo de contracción en vivo, del lado del fisio ---
+  let mvcPacienteActual = null, minPctPacienteActual = 25;
+  let lotesRecibidos = 0, calibracionFallida = false;   // para saber si llega señal del paciente
+  let enContraccionFisio = false, inicioContraccionFisioTs = null, ultimaContraccionFisioMs = 0, envFisio = 0;
+
+  async function abrirSesion(patient, numeroSesion){
+    selectedPatient = patient;
+    bufferEmg = [];
+    picoActualSesion = 0;
+    procSensor.reiniciar();
+    reiniciarFatiga();
+    document.getElementById('sessionPatientName').textContent = patient.full_name;
+    document.getElementById('sessionTitle').textContent = `Sesión #${numeroSesion}`;
+    document.getElementById('varPico').textContent = '— mV';
+    document.getElementById('varRms').textContent = '— mV';
+    document.getElementById('varContraccion').textContent = '— ms';
+
+    const { data: live } = await supabaseClient.from('live_session_state')
+      .select('patient_ready, session_active, paused').eq('patient_id', patient.id).maybeSingle();
+
+    document.getElementById('btnTerminarSesion').disabled = !live?.session_active;
+    if (live?.session_active){
+      document.getElementById('varEstado').textContent = live.paused ? 'Pausado' : 'Jugando';
+      document.getElementById('btnPausarRemoto').disabled = live.paused;
+      document.getElementById('btnReanudarRemoto').disabled = !live.paused;
+    } else if (live?.patient_ready){
+      document.getElementById('varEstado').textContent = 'Paciente listo, esperando Start Game';
+      document.getElementById('btnPausarRemoto').disabled = true;
+      document.getElementById('btnReanudarRemoto').disabled = true;
+    } else {
+      document.getElementById('varEstado').textContent = 'Esperando confirmación del paciente';
+      document.getElementById('btnPausarRemoto').disabled = true;
+      document.getElementById('btnReanudarRemoto').disabled = true;
+    }
+
+    await actualizarEstadoCalibracionPara(patient.id);
+    await cargarConfigNivelesSaltos(patient.id);
+    await cargarUmbrales(patient.id);
+    document.getElementById('configEstado').textContent = '';
+    bloquearConfig(!!live?.session_active);
+    conectarCanalEnVivo(patient.id);
+    cargarSensor(patient.id);
+    await cargarHistorial(patient);
+
+    comentariosPendientes = leerPendientesLocal();
+    document.getElementById('liveCommentEstado').textContent = '';
+    document.getElementById('btnLiveRetry').style.display = 'none';
+    const ultima = historialActual[0];
+    if (ultima && comentariosPendientes.length){
+      const limite = new Date(ultima.date).getTime();
+      const anteriores = comentariosPendientes.filter(c => c.t < limite);
+      if (anteriores.length && confirm(`Tienes ${anteriores.length} comentario(s) escritos antes de que se guardara la sesión #${historialActual.length}. ¿Agregarlos a esa sesión?`)){
+        if (await insertarComentarios(anteriores, ultima.id)){
+          comentariosPendientes = comentariosPendientes.filter(c => !anteriores.includes(c));
+          guardarPendientesLocal();
+          await cargarComentarios(patient.id);
+          renderComentarios();
+        }
+      }
+    }
+    renderComentariosPendientes();
+
+    show('viewSession');
+  }
+
+  // --- Configuración de niveles / saltos por nivel ---
+  let nivelesActualConfig = 5, saltosActualConfig = 5;
+
+  async function cargarConfigNivelesSaltos(patientId){
+    const { data } = await supabaseClient.from('game_config').select('total_levels, jumps_per_level').eq('patient_id', patientId).single();
+    nivelesActualConfig = data?.total_levels || 5;
+    saltosActualConfig = data?.jumps_per_level || 5;
+    document.getElementById('valorNiveles').textContent = nivelesActualConfig;
+    document.getElementById('valorSaltos').textContent = saltosActualConfig;
+  }
+
+  async function guardarConfigNivelesSaltos(){
+    if (!selectedPatient) return;
+    const el = document.getElementById('configEstado');
+    el.textContent = 'Guardando...';
+    const { data, error } = await supabaseClient.from('game_config').update({
+      total_levels: nivelesActualConfig, jumps_per_level: saltosActualConfig
+    }).eq('patient_id', selectedPatient.id).select('patient_id');
+    if (error){ el.textContent = 'No se pudo guardar: ' + (error.message || error.code); return; }
+    if (!data || data.length === 0){ el.textContent = 'No se guardó: falta la configuración de este paciente o el permiso para editarla (corre el SQL de reparación).'; return; }
+    el.textContent = `✓ Guardado: ${nivelesActualConfig} niveles × ${saltosActualConfig} saltos. Se aplica al dar Start Game.`;
+  }
+
+  // Mientras el paciente juega no se puede cambiar la configuración
+  function bloquearConfig(bloquear){
+    ['btnNivelesMenos', 'btnNivelesMas', 'btnSaltosMenos', 'btnSaltosMas'].forEach(id => { document.getElementById(id).disabled = bloquear; });
+    if (bloquear) document.getElementById('configEstado').textContent = 'Bloqueado mientras el paciente juega.';
+    umbralesBloqueados = bloquear;
+    renderUmbrales();
+  }
+
+  // ============================================================
+  //  UMBRALES DE CONTRACCIÓN (% del MVC), ajustables por paciente
+  // ============================================================
+  const UMBRALES_PREDETERMINADOS = { min: 25, good: 55, final: 60 };
+  let umbrales = { ...UMBRALES_PREDETERMINADOS };
+  let mvcReferencia = null;            // MVC del paciente en mV (= 100%)
+  let umbralesBloqueados = false;
+
+  const mvDe = (pct) => (mvcReferencia * pct / 100).toFixed(3) + ' mV';
+
+  function renderUmbrales(){
+    const filas = [['min', 'Min'], ['good', 'Good'], ['final', 'Final']];
+    filas.forEach(([k, nombre]) => {
+      const sl = document.getElementById('slUmbral' + nombre);
+      sl.value = umbrales[k];
+      sl.disabled = !mvcReferencia || umbralesBloqueados;
+      document.getElementById('valUmbral' + nombre).textContent = umbrales[k] + '%' + (mvcReferencia ? ' · ' + mvDe(umbrales[k]) : '');
+    });
+    document.getElementById('btnUmbralesReset').disabled = !mvcReferencia || umbralesBloqueados;
+    document.getElementById('umbralesRef').textContent = !mvcReferencia
+      ? 'Calibra al paciente para poder ajustar los umbrales.'
+      : umbralesBloqueados ? 'Bloqueado mientras el paciente juega.'
+      : `100% = MVC del paciente: ${mvcReferencia.toFixed(3)} mV. Cada barra muestra su valor en mV.`;
+  }
+
+  // Reglas: el pato salta desde X; el buen salto es al menos 5 puntos arriba; el último nivel nunca es más fácil
+  function aplicarCambioUmbral(clave, valor){
+    const v = Math.round(Number(valor));
+    let { min, good, final } = umbrales;
+    if (clave === 'min'){ min = Math.max(5, Math.min(90, v)); if (good < min + 5) good = min + 5; if (final < good) final = good; }
+    if (clave === 'good'){ good = Math.max(min + 5, Math.min(100, v)); if (final < good) final = good; }
+    if (clave === 'final'){ final = Math.max(good, Math.min(100, v)); }
+    umbrales = { min, good, final };
+    minPctPacienteActual = min;      // la gráfica en vivo usa el mismo mínimo
+  }
+
+  async function guardarUmbrales(){
+    if (!selectedPatient) return;
+    const el = document.getElementById('umbralesEstado');
+    el.style.color = 'var(--ink-dim)'; el.textContent = 'Guardando...';
+    const { data, error } = await supabaseClient.from('game_config').update({
+      threshold_min_pct: umbrales.min, threshold_good_pct: umbrales.good, threshold_good_pct_final: umbrales.final
+    }).eq('patient_id', selectedPatient.id).select('patient_id');
+    if (error){ el.style.color = '#ffb3b3'; el.textContent = 'No se pudo guardar: ' + (error.message || error.code); return; }
+    if (!data || data.length === 0){ el.style.color = '#ffb3b3'; el.textContent = 'No se guardó: falta la configuración de este paciente o el permiso para editarla (corre el SQL de reparación).'; return; }
+    el.style.color = 'var(--duck-yellow)';
+    el.textContent = `✓ Guardado: ${umbrales.min}% / ${umbrales.good}% / ${umbrales.final}%. Se aplica al dar Start Game.`;
+    actualizarEstadoCalibracionPara(selectedPatient.id);
+  }
+
+  async function cargarUmbrales(patientId){
+    const { data: c } = await supabaseClient.from('game_config')
+      .select('mvc_mv, threshold_min_pct, threshold_good_pct, threshold_good_pct_final').eq('patient_id', patientId).maybeSingle();
+    mvcReferencia = c?.mvc_mv || null;
+    umbrales = {
+      min: c?.threshold_min_pct ?? UMBRALES_PREDETERMINADOS.min,
+      good: c?.threshold_good_pct ?? UMBRALES_PREDETERMINADOS.good,
+      final: c?.threshold_good_pct_final ?? UMBRALES_PREDETERMINADOS.final
+    };
+    document.getElementById('umbralesEstado').textContent = '';
+    renderUmbrales();
+  }
+
+  [['min', 'Min'], ['good', 'Good'], ['final', 'Final']].forEach(([clave, nombre]) => {
+    const sl = document.getElementById('slUmbral' + nombre);
+    sl.addEventListener('input', () => { aplicarCambioUmbral(clave, sl.value); renderUmbrales(); });   // se mueve en vivo
+    sl.addEventListener('change', guardarUmbrales);                                                    // se guarda al soltar
+  });
+  document.getElementById('btnUmbralesReset').onclick = () => {
+    umbrales = { ...UMBRALES_PREDETERMINADOS };
+    minPctPacienteActual = umbrales.min;
+    renderUmbrales();
+    guardarUmbrales();
+  };
+
+  document.getElementById('btnNivelesMenos').onclick = () => {
+    if (nivelesActualConfig <= 1) return;
+    nivelesActualConfig--;
+    document.getElementById('valorNiveles').textContent = nivelesActualConfig;
+    guardarConfigNivelesSaltos();
+  };
+  document.getElementById('btnNivelesMas').onclick = () => {
+    if (nivelesActualConfig >= 10) return;
+    nivelesActualConfig++;
+    document.getElementById('valorNiveles').textContent = nivelesActualConfig;
+    guardarConfigNivelesSaltos();
+  };
+  document.getElementById('btnSaltosMenos').onclick = () => {
+    if (saltosActualConfig <= 1) return;
+    saltosActualConfig--;
+    document.getElementById('valorSaltos').textContent = saltosActualConfig;
+    guardarConfigNivelesSaltos();
+  };
+  document.getElementById('btnSaltosMas').onclick = () => {
+    if (saltosActualConfig >= 15) return;
+    saltosActualConfig++;
+    document.getElementById('valorSaltos').textContent = saltosActualConfig;
+    guardarConfigNivelesSaltos();
+  };
+
+  async function actualizarEstadoCalibracionPara(patientId){
+    const { data: config } = await supabaseClient
+      .from('game_config').select('mvc_mv, threshold_good_pct').eq('patient_id', patientId).single();
+
+    const statusEl = document.getElementById('mvcStatus');
+    const startBtn = document.getElementById('btnStartGame');
+
+    if (config && config.mvc_mv){
+      statusEl.textContent = `MVC: ${config.mvc_mv.toFixed(3)} mV — buen salto desde ${config.threshold_good_pct}%`;
+      startBtn.disabled = false;
+    } else {
+      statusEl.textContent = 'Paciente sin calibrar — calibra antes de iniciar';
+      startBtn.disabled = true;
+    }
+  }
+
+  // --- Calibración remota: solo avisa al paciente, él hace la captura ---
+  document.getElementById('btnCalibrar').onclick = async () => {
+    if (!selectedPatient) return;
+    const btn = document.getElementById('btnCalibrar');
+    const statusEl = document.getElementById('mvcStatus');
+    btn.disabled = true;
+    statusEl.textContent = 'Pidiendo al paciente que contraiga al máximo (5 s)...';
+
+    calibracionFallida = false;
+    const lotesAntes = lotesRecibidos;
+    const { error: errCal } = await supabaseClient.from('live_session_state').upsert({
+      patient_id: selectedPatient.id, calibration_requested: true
+    });
+    if (errCal){
+      statusEl.textContent = 'Error al pedir calibración: ' + (errCal.message || errCal.code);
+      btn.disabled = false;
+      return;
+    }
+
+    setTimeout(async () => {
+      if (!selectedPatient) return;
+      const { data: estado } = await supabaseClient.from('live_session_state')
+        .select('calibration_requested').eq('patient_id', selectedPatient.id).maybeSingle();
+      if (!calibracionFallida) await actualizarEstadoCalibracionPara(selectedPatient.id);
+
+      if (estado?.calibration_requested){
+        // El paciente nunca la atendió: se cancela para que no se dispare sola más tarde
+        await supabaseClient.from('live_session_state').update({ calibration_requested: false }).eq('patient_id', selectedPatient.id);
+        statusEl.textContent = 'El paciente no respondió. ¿Tiene abierta su pantalla del juego? Si ve un texto rojo en su pantalla, avísame qué dice.';
+      } else if (lotesRecibidos === lotesAntes && !calibracionFallida){
+        statusEl.textContent = 'El paciente calibró, pero no llegó la señal en vivo. Revisa el texto rojo en su pantalla (canal en vivo).';
+      }
+      btn.disabled = false;
+    }, 8000);
+  };
+
+  // --- Start Game: un solo botón, dispara el inicio en la pantalla del paciente ---
+  document.getElementById('btnStartGame').onclick = async () => {
+    if (!selectedPatient) return;
+    const filaStart = { patient_id: selectedPatient.id, patient_ready: true, physio_authorized: true, session_active: true, paused: false, end_requested: false };
+    let { error: errStart } = await supabaseClient.from('live_session_state').upsert(filaStart);
+    let sinEndRequested = false;
+    if (errStart && /end_requested/.test(errStart.message || '')){
+      delete filaStart.end_requested; sinEndRequested = true;
+      ({ error: errStart } = await supabaseClient.from('live_session_state').upsert(filaStart));
+    }
+    if (errStart){ alert('No se pudo iniciar el juego: ' + (errStart.message || errStart.code)); return; }
+    document.getElementById('varEstado').textContent = sinEndRequested
+      ? 'Jugando (falta correr el SQL: el botón Terminar no funcionará todavía)' : 'Jugando';
+    document.getElementById('btnPausarRemoto').disabled = false;
+    document.getElementById('btnReanudarRemoto').disabled = true;
+    document.getElementById('btnTerminarSesion').disabled = false;
+    bloquearConfig(true);
+  };
+
+  // --- Terminar: el fisio puede dar por guardada la sesión cuando quiera ---
+  document.getElementById('btnTerminarSesion').onclick = async () => {
+    if (!selectedPatient) return;
+    if (!confirm('¿Terminar la sesión y guardar lo que lleva el paciente hasta ahora?')) return;
+    const { error: errT } = await supabaseClient.from('live_session_state').update({ end_requested: true }).eq('patient_id', selectedPatient.id);
+    if (errT){ alert('No se pudo terminar la sesión: ' + (errT.message || errT.code)); return; }
+    document.getElementById('varEstado').textContent = 'Terminando y guardando...';
+    document.getElementById('btnPausarRemoto').disabled = true;
+    document.getElementById('btnReanudarRemoto').disabled = true;
+    document.getElementById('btnTerminarSesion').disabled = true;
+  };
+
+  document.getElementById('btnPausarRemoto').onclick = async () => {
+    if (!selectedPatient) return;
+    const { error: errP } = await supabaseClient.from('live_session_state').update({ paused: true }).eq('patient_id', selectedPatient.id);
+    if (errP){ alert('No se pudo pausar: ' + (errP.message || errP.code)); return; }
+    document.getElementById('varEstado').textContent = 'Pausado';
+    document.getElementById('btnPausarRemoto').disabled = true;
+    document.getElementById('btnReanudarRemoto').disabled = false;
+  };
+
+  document.getElementById('btnReanudarRemoto').onclick = async () => {
+    if (!selectedPatient) return;
+    const { error: errR } = await supabaseClient.from('live_session_state').update({ paused: false }).eq('patient_id', selectedPatient.id);
+    if (errR){ alert('No se pudo reanudar: ' + (errR.message || errR.code)); return; }
+    document.getElementById('varEstado').textContent = 'Jugando';
+    document.getElementById('btnPausarRemoto').disabled = false;
+    document.getElementById('btnReanudarRemoto').disabled = true;
+  };
+
+  // --- Canal en vivo: recibe la señal y el resultado de calibración del paciente ---
+  // Procesa un paquete de muestras EMG, llegue por donde llegue:
+  // del juego del paciente (canal session_...) o de un sensor ESP32 vinculado (canal sensor_...).
+  function procesarLoteEmg(muestras){
+    lotesRecibidos++;
+    if (sensorActivo()) return;   // con el sensor real, RMS y amplitud salen solo del sensor
+
+    muestras.forEach(v => {
+      bufferEmg.push(v);
+      if (bufferEmg.length > 500) bufferEmg.shift();
+
+      const mag = Math.abs(v);
+      if (mag > picoActualSesion) picoActualSesion = mag;
+
+      // Tiempo de contracción, calculado igual que del lado del paciente (sobre la envolvente)
+      envFisio = envFisio * 0.8 + mag * 0.2;
+      if (mvcPacienteActual){
+        const pctEnv = (envFisio / mvcPacienteActual) * 100;
+        if (!enContraccionFisio && pctEnv >= minPctPacienteActual){
+          enContraccionFisio = true;
+          inicioContraccionFisioTs = performance.now();
+        } else if (enContraccionFisio && pctEnv < minPctPacienteActual * 0.8){
+          enContraccionFisio = false;
+          ultimaContraccionFisioMs = Math.round(performance.now() - inicioContraccionFisioTs);
+        }
+      }
+    });
+
+    // Actualiza los números una sola vez por paquete (no por cada muestra)
+    const ventana = bufferEmg.slice(-200);
+    const rms = Math.sqrt(ventana.reduce((a,b)=>a+b*b,0) / ventana.length);
+    document.getElementById('varRms').textContent = rms.toFixed(2) + ' mV';
+    document.getElementById('varPico').textContent = picoActualSesion.toFixed(2) + ' mV';
+    if (ultimaContraccionFisioMs) document.getElementById('varContraccion').textContent = ultimaContraccionFisioMs + ' ms';
+  }
+
+  // Paquete del sensor ESP32 real: 128 muestras a 2000 Hz, en mV a la salida del circuito.
+  // Se convierte a mV en la piel, se calcula RMS por ventana de 512 y la envolvente (5 Hz).
+  function sensorActivo(){ return Date.now() - ultimaSenalSensorTs < 2500; }
+  function procesarLoteSensor(payload){
+    lotesRecibidos++;
+    procSensor.procesarPaquete(payload);
+    const aV = procSensor.ganancia / 1000;                 // mV en la piel → V a la salida (lo que dibuja la gráfica)
+    if (procSensor.rms !== null){
+      document.getElementById('varRms').textContent = procSensor.rms.toFixed(3) + ' mV';
+      document.getElementById('varRmsSub').textContent = `en la piel · ${(procSensor.rms * aV).toFixed(3)} V a la salida`;
+    }
+    document.getElementById('varPico').textContent = procSensor.pico.toFixed(3) + ' mV';
+    document.getElementById('varPicoSub').textContent = `máx. de la envolvente · ${(procSensor.pico * aV).toFixed(3)} V a la salida`;
+    actualizarFatiga();
+  }
+
+  // ---------------------------------------------------------------------------
+  //  FATIGA: MNF y MDF (evidencia técnica). sensorEmg.js las calcula por ventana de 512 muestras;
+  //  aquí se promedian las ventanas de cada contracción (envolvente arriba de "el pato salta desde")
+  //  y cada repetición se compara contra la primera: si bajan, el músculo puede estar fatigándose.
+  // ---------------------------------------------------------------------------
+  let ventanasVistas = 0, repActual = null, repeticiones = [];
+  function reiniciarFatiga(){
+    ventanasVistas = 0; repActual = null; repeticiones = [];
+    document.getElementById('varMnf').textContent = '— Hz';
+    document.getElementById('varMdf').textContent = '— Hz';
+    document.getElementById('varMnfSub').textContent = 'esperando contracción';
+    document.getElementById('varMdfSub').textContent = 'esperando contracción';
+    document.getElementById('varRmsSub').textContent = 'en la piel';
+    document.getElementById('varPicoSub').textContent = 'máximo de la envolvente';
+    const t = document.getElementById('varTendencia'); t.textContent = '—'; t.className = 'value';
+    document.getElementById('sparkMnf').replaceChildren();
+  }
+  function mostrarFatiga(mnf, mdf, nota){
+    document.getElementById('varMnf').textContent = mnf.toFixed(1) + ' Hz';
+    document.getElementById('varMdf').textContent = mdf.toFixed(1) + ' Hz';
+    document.getElementById('varMnfSub').textContent = nota;
+    document.getElementById('varMdfSub').textContent = nota;
+  }
+  function actualizarFatiga(){
+    if (procSensor.ventanas === ventanasVistas) return;
+    ventanasVistas = procSensor.ventanas;
+    if (procSensor.mnf == null || procSensor.mdf == null) return;
+    const mvc = mvcReferencia || mvcPacienteActual;
+    if (!mvc){ mostrarFatiga(procSensor.mnf, procSensor.mdf, 'ventana actual (paciente sin calibrar)'); return; }
+    const umbral = mvc * (umbrales.min || minPctPacienteActual) / 100;
+    const activa = procSensor.envVentana != null && procSensor.envVentana >= umbral;
+    if (activa){
+      if (!repActual) repActual = { mnf: 0, mdf: 0, n: 0 };
+      repActual.mnf += procSensor.mnf; repActual.mdf += procSensor.mdf; repActual.n++;
+      mostrarFatiga(repActual.mnf / repActual.n, repActual.mdf / repActual.n, 'contracción en curso');
+    } else if (repActual){
+      const r = { mnf: repActual.mnf / repActual.n, mdf: repActual.mdf / repActual.n };
+      repActual = null;
+      repeticiones.push(r);
+      mostrarFatiga(r.mnf, r.mdf, `repetición ${repeticiones.length}`);
+      dibujarTendencia();
+    }
+  }
+  function dibujarTendencia(){
+    const t = document.getElementById('varTendencia');
+    if (repeticiones.length < 2){ t.textContent = '1 repetición'; t.className = 'value'; }
+    else {
+      const primera = repeticiones[0].mnf, ultima = repeticiones[repeticiones.length - 1].mnf;
+      const cambio = (ultima - primera) / primera * 100;
+      t.textContent = (cambio > 0 ? '+' : '') + cambio.toFixed(1) + ' %';
+      t.className = 'value' + (cambio <= -5 ? ' baja' : '');
+    }
+    // mini gráfica: la MNF de cada repetición
+    const svg = document.getElementById('sparkMnf'); svg.replaceChildren();
+    if (repeticiones.length < 2) return;
+    const vals = repeticiones.map(r => r.mnf), mn = Math.min(...vals), mx = Math.max(...vals), rango = Math.max(1, mx - mn);
+    const pts = vals.map((v, i) => `${(i / (vals.length - 1) * 100).toFixed(1)},${(23 - (v - mn) / rango * 20).toFixed(1)}`).join(' ');
+    const linea = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+    linea.setAttribute('points', pts); linea.setAttribute('fill', 'none'); linea.setAttribute('stroke', '#8fd3ff');
+    linea.setAttribute('stroke-width', '2'); linea.setAttribute('vector-effect', 'non-scaling-stroke');
+    svg.appendChild(linea);
+  }
+
+  // Cuenta regresiva de la calibración, sincronizada con la pantalla del paciente (un aviso por segundo).
+  let ocultarCuentaFisioId = null;
+  function mostrarCuentaCalibFisio({ seg, total }){
+    if (typeof seg !== 'number') return;
+    total = total || 5;
+    const caja = document.getElementById('calibCountdownFisio');
+    const num = document.getElementById('cdNumFisio');
+    const arco = document.getElementById('cdArcoFisio');
+    clearTimeout(ocultarCuentaFisioId);
+    caja.classList.add('show');
+    num.textContent = seg > 0 ? String(seg) : '✓';
+    document.getElementById('cdSubFisio').textContent = seg > 0 ? 'El paciente está contrayendo al máximo' : 'Calibración terminada';
+    arco.style.transition = 'none';
+    arco.style.strokeDashoffset = String(100 * (1 - seg / total));
+    void arco.getBoundingClientRect();
+    if (seg > 0){
+      arco.style.transition = 'stroke-dashoffset 1s linear';
+      arco.style.strokeDashoffset = String(100 * (1 - (seg - 1) / total));
+    }
+    num.classList.remove('tick'); void num.offsetWidth; num.classList.add('tick');
+    // se oculta al terminar, o sola si dejan de llegar avisos (p. ej. se cortó la conexión)
+    ocultarCuentaFisioId = setTimeout(() => caja.classList.remove('show'), seg > 0 ? 2500 : 1500);
+  }
+
+  async function conectarCanalEnVivo(patientId){
+    if (sessionBroadcastChannel) supabaseClient.removeChannel(sessionBroadcastChannel);
+    drawingActive = true;
+    enContraccionFisio = false; ultimaContraccionFisioMs = 0; envFisio = 0;
+
+    const { data: cfg } = await supabaseClient.from('game_config').select('mvc_mv, threshold_min_pct').eq('patient_id', patientId).single();
+    mvcPacienteActual = cfg?.mvc_mv || null;
+    minPctPacienteActual = cfg?.threshold_min_pct || 25;
+
+    sessionBroadcastChannel = supabaseClient
+      .channel('session_' + patientId, { config: { broadcast: { self: false } } })
+      .on('broadcast', { event: 'emg_batch' }, (msg) => procesarLoteEmg(msg.payload.s || []))
+      .on('broadcast', { event: 'contraccion' }, (msg) => {
+        if (msg.payload && msg.payload.dur_ms != null) document.getElementById('varContraccion').textContent = msg.payload.dur_ms + ' ms';
+      })
+      .on('broadcast', { event: 'calibration_tick' }, (msg) => mostrarCuentaCalibFisio(msg.payload || {}))
+      .on('broadcast', { event: 'calibration_failed' }, () => {
+        calibracionFallida = true;
+        document.getElementById('calibCountdownFisio').classList.remove('show');
+        document.getElementById('mvcStatus').textContent = 'La calibración no detectó contracción. Intenta de nuevo.';
+      })
+      .on('broadcast', { event: 'game_completed' }, () => {
+        document.getElementById('varEstado').textContent = 'El paciente completó todos los niveles — falta cerrar la sesión';
+        document.getElementById('btnPausarRemoto').disabled = true;
+        document.getElementById('btnReanudarRemoto').disabled = true;
+      })
+      .on('broadcast', { event: 'session_saved' }, async () => {
+        document.getElementById('varEstado').textContent = 'Sesión guardada';
+        document.getElementById('btnPausarRemoto').disabled = true;
+        document.getElementById('btnReanudarRemoto').disabled = true;
+        document.getElementById('btnTerminarSesion').disabled = true;
+        if (selectedPatient){
+          await cargarHistorial(selectedPatient);
+          await adjuntarPendientesASesion(historialActual[0]);
+          document.getElementById('sessionTitle').textContent = `Sesión #${historialActual.length + 1}`;
+          bloquearConfig(false);
+          await cargarConfigNivelesSaltos(selectedPatient.id);
+          await cargarUmbrales(selectedPatient.id);
+          document.getElementById('configEstado').textContent = '';
+          await actualizarEstadoCalibracionPara(selectedPatient.id);
+        }
+      })
+      .on('broadcast', { event: 'calibration_result' }, (msg) => {
+        document.getElementById('mvcStatus').textContent = `MVC recién calibrado: ${msg.payload.mvc.toFixed(3)} mV`;
+        document.getElementById('btnStartGame').disabled = false;
+        mvcPacienteActual = msg.payload.mvc;
+        mvcReferencia = msg.payload.mvc;
+        renderUmbrales();
+      })
+      .subscribe();
+
+    const canvas = document.getElementById('emgCanvas');
+    const ctx = canvas.getContext('2d');
+    const miTurno = ++turnoDibujo;   // si se abre otro paciente, el dibujo anterior se detiene
+    function draw(){
+      if (!drawingActive || miTurno !== turnoDibujo) return;
+      // El tamaño se revisa en CADA cuadro: si la pantalla estaba oculta al conectarse
+      // (tamaño 0), la gráfica toma su tamaño real en cuanto se muestra.
+      const caja = canvas.parentElement.getBoundingClientRect();
+      const anchoReal = Math.round(caja.width * devicePixelRatio), altoReal = Math.round(caja.height * devicePixelRatio);
+      if (anchoReal === 0 || altoReal === 0){ requestAnimationFrame(draw); return; }
+      if (canvas.width !== anchoReal || canvas.height !== altoReal){
+        canvas.width = anchoReal; canvas.height = altoReal;
+        ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+      }
+      const w = canvas.width/devicePixelRatio, h = canvas.height/devicePixelRatio;
+      ctx.clearRect(0,0,w,h);
+      const env = sensorActivo() ? procSensor.envolvente() : null;
+      if (env){
+        // --- sensor real: la envolvente del ESP32 en VOLTS a la salida del circuito (igual que Teleplot) ---
+        const aVolts = procSensor.ganancia / 1000;            // mV en la piel × 700 / 1000 = V a la salida
+        let maxV = 0;
+        for (let i = 0; i < env.datos.length; i++) maxV = Math.max(maxV, env.datos[i] * aVolts);
+        // umbrales del juego (en V a la salida), si el paciente ya está calibrado
+        const mvcRef = mvcReferencia || mvcPacienteActual;
+        const umbralSaltaV = mvcRef ? mvcRef * umbrales.min / 100 * aVolts : null;
+        const umbralBuenoV = mvcRef ? mvcRef * umbrales.good / 100 * aVolts : null;
+        // escala automática: sube de inmediato con un pico, baja despacio, y siempre deja ver la línea de "buen salto"
+        const objetivo = Math.max(GRAFICA_MIN_V, maxV * 1.15, umbralBuenoV ? umbralBuenoV * 1.25 : 0);
+        escalaGraficaV = objetivo > escalaGraficaV ? objetivo : escalaGraficaV * 0.97 + objetivo * 0.03;
+        const pasoV = pasoRedondo(escalaGraficaV / 4);
+        const topeV = Math.ceil(escalaGraficaV / pasoV - 1e-9) * pasoV;
+        const decimales = Math.max(0, -Math.floor(Math.log10(pasoV) + 1e-9));
+        const mIzq = 50, mDer = 10, mArriba = 26, mAbajo = 22;
+        const gw = w - mIzq - mDer, gh = h - mArriba - mAbajo, base = mArriba + gh;
+        const yDe = (v) => base - Math.min(v, topeV) / topeV * gh;
+        // rejilla horizontal (volts)
+        ctx.font = '11px sans-serif'; ctx.textAlign = 'right'; ctx.lineWidth = 1;
+        for (let v = 0; v <= topeV + 1e-9; v += pasoV){
+          const y = yDe(v);
+          ctx.strokeStyle = v === 0 ? '#3b5560' : 'rgba(255,255,255,0.07)';
+          ctx.beginPath(); ctx.moveTo(mIzq, y); ctx.lineTo(mIzq + gw, y); ctx.stroke();
+          ctx.fillStyle = '#8b98a5'; ctx.fillText(v.toFixed(decimales) + ' V', mIzq - 6, y + 4);
+        }
+        // eje de tiempo: una marca por segundo, "ahora" a la derecha
+        ctx.textAlign = 'center';
+        for (let sg = 0; sg <= env.segundos; sg++){
+          const x = mIzq + gw * (1 - sg / env.segundos);
+          ctx.strokeStyle = 'rgba(255,255,255,0.05)'; ctx.beginPath(); ctx.moveTo(x, mArriba); ctx.lineTo(x, base); ctx.stroke();
+          ctx.fillStyle = '#6f8089'; ctx.fillText(sg === 0 ? 'ahora' : '−' + sg + ' s', Math.min(x, mIzq + gw - 14), h - 6);
+        }
+        // umbrales del pato (líneas punteadas); sus etiquetas se dibujan después de la curva para que no queden tapadas
+        const umbralesGrafica = [[umbralSaltaV, '#ff8a8a', `salta desde ${umbrales.min} %`], [umbralBuenoV, '#9fe870', `buen salto ${umbrales.good} %`]]
+          .filter(u => u[0] != null && u[0] <= topeV);
+        umbralesGrafica.forEach(([v, color]) => {
+          const y = yDe(v);
+          ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = 1.2;
+          if (ctx.setLineDash) ctx.setLineDash([6, 5]);
+          ctx.beginPath(); ctx.moveTo(mIzq, y); ctx.lineTo(mIzq + gw, y); ctx.stroke(); ctx.restore();
+        });
+        // la envolvente: relleno suave + línea; lo más nuevo a la derecha
+        const paso = gw / (env.capacidad - 1);
+        const x0 = mIzq + (env.capacidad - env.datos.length) * paso;
+        const n = env.datos.length, xUlt = x0 + (n - 1) * paso;
+        const grad = ctx.createLinearGradient ? ctx.createLinearGradient(0, mArriba, 0, base) : null;
+        if (grad && grad.addColorStop){
+          grad.addColorStop(0, 'rgba(255,169,77,0.35)'); grad.addColorStop(1, 'rgba(255,169,77,0.02)');
+          ctx.fillStyle = grad; ctx.beginPath(); ctx.moveTo(x0, base);
+          for (let i = 0; i < n; i++) ctx.lineTo(x0 + i * paso, yDe(env.datos[i] * aVolts));
+          ctx.lineTo(xUlt, base); ctx.closePath(); ctx.fill();
+        }
+        ctx.strokeStyle = '#ffa94d'; ctx.lineWidth = 2.2; ctx.lineJoin = 'round'; ctx.beginPath();
+        for (let i = 0; i < n; i++){
+          const x = x0 + i * paso, y = yDe(env.datos[i] * aVolts);
+          i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+        // etiquetas de los umbrales, con fondo para que se lean aunque la curva pase por ahí
+        ctx.font = '11px sans-serif'; ctx.textAlign = 'left';
+        umbralesGrafica.forEach(([v, color, texto]) => {
+          const y = yDe(v), medida = ctx.measureText ? ctx.measureText(texto) : null;
+          const ancho = (medida && medida.width) || texto.length * 6;
+          ctx.fillStyle = 'rgba(6,36,44,0.88)'; ctx.fillRect(mIzq + 4, y - 16, ancho + 10, 15);
+          ctx.fillStyle = color; ctx.fillText(texto, mIzq + 9, y - 5);
+        });
+        // valor actual: punto al final de la línea y número arriba a la derecha
+        const vAhora = env.datos[n - 1] * aVolts;
+        ctx.fillStyle = '#ffcd3c'; ctx.beginPath(); ctx.arc(xUlt, yDe(vAhora), 4, 0, Math.PI * 2); ctx.fill();
+        ctx.font = 'bold 13px sans-serif'; ctx.textAlign = 'right';
+        ctx.fillText('ahora ' + vAhora.toFixed(3) + ' V', w - mDer, 17);
+        ctx.font = '12px sans-serif'; ctx.fillStyle = '#8b98a5'; ctx.textAlign = 'left';
+        ctx.fillText(`Envolvente · V (salida del circuito, sin reposo: −${(procSensor.reposo.nivel * aVolts).toFixed(3)} V)`, mIzq, 17);
+      } else if (bufferEmg.length > 1){
+        ctx.strokeStyle = '#263039'; ctx.beginPath(); ctx.moveTo(0,h/2); ctx.lineTo(w,h/2); ctx.stroke();
+        ctx.strokeStyle = '#9fe870'; ctx.lineWidth = 1.6; ctx.beginPath();
+        const step = w / 500;
+        bufferEmg.forEach((v,i) => { const x=i*step, y=h/2 - v*(h*0.35); i===0?ctx.moveTo(x,y):ctx.lineTo(x,y); });
+        ctx.stroke();
+      }
+      requestAnimationFrame(draw);
+    }
+    draw();
+  }
+
+  // --- Historial (separado de comentarios) + descarga en PDF ---
+  let historialActual = [];
+  let historialIndex = 0;
+
+  let comentariosPorSesion = {};   // session_id -> [{ visibility, body, created_at }]
+  let errorComentarios = '';
+
+  async function cargarComentarios(patientId){
+    comentariosPorSesion = {}; errorComentarios = '';
+    const { data, error } = await supabaseClient.from('session_comments')
+      .select('session_id, visibility, body, created_at').eq('patient_id', patientId).order('created_at', { ascending: true });
+    if (error){ errorComentarios = 'No se pudieron leer los comentarios: ' + (error.message || error.code) + ' (corre el SQL de reparación).'; return; }
+    (data || []).forEach(c => { (comentariosPorSesion[c.session_id] = comentariosPorSesion[c.session_id] || []).push(c); });
+  }
+
+  // Comentarios de una sesión (incluye los de versiones anteriores, si los hubiera)
+  function comentariosDeSesion(s){
+    return [
+      ...(comentariosPorSesion[s.id] || []),
+      ...(s.private_comments || []).map(t => ({ visibility: 'private', body: t })),
+      ...(s.patient_comments || []).map(t => ({ visibility: 'patient', body: t }))
+    ];
+  }
+
+  async function cargarHistorial(patient){
+    const { data } = await supabaseClient.from('sessions').select('*').eq('patient_id', patient.id).order('date', { ascending: false });
+    historialActual = data || [];
+    historialIndex = 0;
+    await cargarComentarios(patient.id);
+    renderHistorialDetalle();   // también redibuja promedios y comentarios de la sesión elegida
+  }
+
+  // ============================================================
+  //  Comentarios de la SESIÓN EN CURSO: se anotan aquí y se guardan
+  //  junto con la sesión cuando el paciente la termina.
+  // ============================================================
+  let comentariosPendientes = [];   // { v: 'private' | 'patient', texto, t }
+  let destinoComentario = 'private';
+  const claveLocal = () => 'cqr_pendientes_' + (selectedPatient ? selectedPatient.id : 'x');
+  function guardarPendientesLocal(){ try { localStorage.setItem(claveLocal(), JSON.stringify(comentariosPendientes)); } catch (e) {} }
+  function leerPendientesLocal(){ try { return JSON.parse(localStorage.getItem(claveLocal()) || '[]'); } catch (e) { return []; } }
+
+  function renderComentariosPendientes(){
+    const cont = document.getElementById('liveCommentList');
+    cont.innerHTML = comentariosPendientes.map((c, i) => `
+      <div class="comment-item"><span>${c.v === 'private' ? '🔒' : '📨'}</span><span style="flex:1;">${escapar(c.texto)}</span>
+        <button class="pend-x" data-i="${i}" title="Quitar">✕</button></div>`).join('');
+    cont.querySelectorAll('.pend-x').forEach(b => {
+      b.onclick = () => { comentariosPendientes.splice(parseInt(b.dataset.i, 10), 1); guardarPendientesLocal(); renderComentariosPendientes(); };
+    });
+    document.getElementById('liveCommentCount').textContent = comentariosPendientes.length
+      ? `${comentariosPendientes.length} comentario(s) por guardar con la sesión` : 'Se guardan al terminar la sesión · 🔒 solo tú · 📨 lo verá el paciente';
+  }
+
+  document.getElementById('btnLiveTargetPrivate').onclick = () => {
+    destinoComentario = 'private';
+    document.getElementById('btnLiveTargetPrivate').classList.add('active');
+    document.getElementById('btnLiveTargetPatient').classList.remove('active');
+  };
+  document.getElementById('btnLiveTargetPatient').onclick = () => {
+    destinoComentario = 'patient';
+    document.getElementById('btnLiveTargetPatient').classList.add('active');
+    document.getElementById('btnLiveTargetPrivate').classList.remove('active');
+  };
+  const cajaTexto = document.getElementById('liveCommentInput');
+  cajaTexto.addEventListener('input', () => { cajaTexto.style.height = 'auto'; cajaTexto.style.height = Math.min(cajaTexto.scrollHeight, 84) + 'px'; });
+  cajaTexto.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); document.getElementById('btnLiveAddComment').click(); } });
+  document.getElementById('btnLiveAddComment').onclick = () => {
+    const input = document.getElementById('liveCommentInput');
+    const texto = input.value.trim();
+    if (!texto) return;
+    comentariosPendientes.push({ v: destinoComentario, texto, t: Date.now() });
+    input.value = ''; input.style.height = 'auto';
+    guardarPendientesLocal();
+    renderComentariosPendientes();
+  };
+
+  const avisoComentarios = (txt, reintentar) => {
+    document.getElementById('liveCommentEstado').textContent = txt;
+    document.getElementById('btnLiveRetry').style.display = reintentar ? 'block' : 'none';
+  };
+
+  // Si la base rechaza el guardado, averigua POR QUÉ para poder decirlo con claridad
+  async function explicarRechazo(sesionId){
+    const causas = [];
+    const { data: perfil } = await supabaseClient.from('profiles').select('linked_physio_id').eq('id', selectedPatient.id).maybeSingle();
+    if (!perfil) causas.push('no puedo leer el perfil del paciente');
+    else if (perfil.linked_physio_id !== currentUser.id) causas.push('este paciente está vinculado a OTRO fisioterapeuta');
+    const { data: ses } = await supabaseClient.from('sessions').select('id, patient_id').eq('id', sesionId).maybeSingle();
+    if (!ses) causas.push('no puedo leer la sesión que se acaba de guardar');
+    else if (ses.patient_id !== selectedPatient.id) causas.push('esa sesión es de otro paciente');
+    return causas.length ? ' Causa probable: ' + causas.join('; ') + '.' : '';
+  }
+
+  async function insertarComentarios(lista, sesionId){
+    if (lista.length === 0) return true;
+
+    // ¿Sigue siendo esta pestaña la sesión del fisio? (si otra cuenta inició sesión en este
+    // mismo navegador, la base vería a otra persona y rechazaría el guardado)
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    if (!user || user.id !== currentUser.id){
+      avisoComentarios('La sesión de esta pestaña ya no es la del fisio (se inició otra cuenta en este mismo navegador). Cierra sesión y vuelve a entrar como fisio. Tus comentarios siguen aquí.', true);
+      return false;
+    }
+
+    const filas = lista.map(c => ({ session_id: sesionId, patient_id: selectedPatient.id, author_id: currentUser.id, visibility: c.v, body: c.texto }));
+    const { error } = await supabaseClient.from('session_comments').insert(filas);
+    if (error){
+      const faltaTabla = error.code === '42P01' || /does not exist|schema cache/.test(error.message || '');
+      const base = faltaTabla ? 'Falta la tabla de comentarios: corre el SQL de reparación.' : 'La base rechazó guardar los comentarios (' + (error.message || error.code) + ').';
+      avisoComentarios(base + (faltaTabla ? '' : await explicarRechazo(sesionId)) + ' Siguen aquí; puedes reintentar.', true);
+      return false;
+    }
+    avisoComentarios('', false);
+    return true;
+  }
+
+  // Pasa los comentarios pendientes a la sesión que se acaba de guardar
+  async function adjuntarPendientesASesion(sesion){
+    if (!sesion || comentariosPendientes.length === 0) return;
+    const lista = comentariosPendientes.slice();
+    if (await insertarComentarios(lista, sesion.id)){
+      comentariosPendientes = comentariosPendientes.filter(c => !lista.includes(c));
+      guardarPendientesLocal();
+      renderComentariosPendientes();
+      await cargarComentarios(selectedPatient.id);
+      renderComentarios();
+    }
+  }
+  document.getElementById('btnLiveRetry').onclick = () => adjuntarPendientesASesion(historialActual[0]);
+
+  const histModal = document.getElementById('historyModal');
+  document.getElementById('btnVerHistorial').onclick = () => { histModal.classList.add('show'); renderHistorialDetalle(); };
+  document.getElementById('btnCerrarHistorial').onclick = () => histModal.classList.remove('show');
+  histModal.addEventListener('click', (e) => { if (e.target === histModal) histModal.classList.remove('show'); });
+
+  document.getElementById('histNavPrev').onclick = () => { if (historialIndex < historialActual.length-1){ historialIndex++; renderHistorialDetalle(); } };
+  document.getElementById('histNavNext').onclick = () => { if (historialIndex > 0){ historialIndex--; renderHistorialDetalle(); } };
+
+  function sesionHistorialActual(){ return historialActual[historialIndex] || null; }
+
+  function renderHistorialDetalle(){
+    const s = sesionHistorialActual();
+    document.getElementById('histNavPrev').disabled = historialIndex >= historialActual.length-1;
+    document.getElementById('histNavNext').disabled = historialIndex <= 0;
+
+    if (!s){
+      document.getElementById('histTitle').textContent = 'Sin sesiones';
+      document.getElementById('histRms').textContent = '—';
+      document.getElementById('histAmp').textContent = '—';
+      document.getElementById('histCont').textContent = '—';
+      document.getElementById('histDur').textContent = '—';
+      document.getElementById('histParams').textContent = '—';
+      dibujarGraficaHistorial(null);
+      renderPromediosSesion();
+      renderComentarios();
+      return;
+    }
+
+    const tipoTrofeo = trofeoPorNiveles(s.levels_completed, s.trophy);
+    const medalHtml = tipoTrofeo && Object.prototype.hasOwnProperty.call(EMOJI_TROFEO, tipoTrofeo)
+      ? contenidoMedalla(tipoTrofeo) : '';
+    document.getElementById('histTitle').innerHTML = `Sesión #${historialActual.length - historialIndex} — ${new Date(s.date).toLocaleDateString()}${medalHtml}`;
+    document.getElementById('histRms').textContent = (s.rms_mv?.toFixed(2) ?? '—') + ' mV';
+    document.getElementById('histAmp').textContent = (s.max_amplitude_mv?.toFixed(2) ?? '—') + ' mV';
+    document.getElementById('histCont').textContent = (s.contraction_time_ms ?? '—') + ' ms';
+    document.getElementById('histDur').textContent = s.duration_seconds != null ? `${Math.floor(s.duration_seconds/60)}:${String(s.duration_seconds%60).padStart(2,'0')}` : '—';
+    document.getElementById('histParams').textContent = (s.levels_configured != null) ? `${s.levels_configured} niveles × ${s.jumps_per_level_configured} saltos` : '—';
+
+    dibujarGraficaHistorial(s.raw_signal);
+    renderPromediosSesion();
+    renderComentarios();
+  }
+
+  function dibujarGraficaHistorial(señal){
+    const canvas = document.getElementById('histCanvas');
+    const ctx = canvas.getContext('2d');
+    const rect = canvas.parentElement.getBoundingClientRect();
+    canvas.width = rect.width * devicePixelRatio;
+    canvas.height = rect.height * devicePixelRatio;
+    ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+    const w = rect.width, h = rect.height;
+    ctx.clearRect(0,0,w,h);
+    ctx.strokeStyle = '#263039'; ctx.beginPath(); ctx.moveTo(0,h/2); ctx.lineTo(w,h/2); ctx.stroke();
+
+    if (!señal || señal.length === 0){
+      ctx.fillStyle = '#8a9aa0'; ctx.font = '12px Inter'; ctx.textAlign = 'center';
+      ctx.fillText('Sin señal guardada para esta sesión', w/2, h/2 - 10);
+      return;
+    }
+    ctx.strokeStyle = '#9fe870'; ctx.lineWidth = 1.6; ctx.beginPath();
+    const step = w / señal.length;
+    const maxAbs = Math.max(...señal.map(Math.abs), 0.01);
+    señal.forEach((v,i) => { const x=i*step, y=h/2 - (v/maxAbs)*(h*0.4); i===0?ctx.moveTo(x,y):ctx.lineTo(x,y); });
+    ctx.stroke();
+  }
+
+  // ------------------------------------------------------------
+  //  Todo lo del historial es POR SESIÓN: cambia al navegar con ‹ ›
+  // ------------------------------------------------------------
+  function escapar(t){
+    return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+  // Medalla según los niveles completados: oro 5 o más, plata 3-4, bronce 2 o menos
+  function trofeoPorNiveles(niveles, respaldo){
+    if (niveles == null) return respaldo || null;
+    if (niveles >= 5) return 'oro';
+    if (niveles >= 3) return 'plata';
+    return 'bronce';
+  }
+  const EMOJI_TROFEO = { oro: 'oro', plata: 'plata', bronce: 'bronce' };
+  function contenidoMedalla(tipo){
+    return `<span class="medal-wrap"><svg class="medal-art ${tipo}" viewBox="0 0 120 148" aria-hidden="true">
+      <path class="medal-ribbon" d="M37 78 57 87 46 137 23 119Z"></path>
+      <path class="medal-ribbon" d="m63 87 20-9 14 41-24 18Z"></path>
+      <circle class="medal-face" cx="60" cy="58" r="37"></circle>
+      <path class="medal-horseshoe" d="M45 42v19a15 15 0 0 0 30 0V42"></path>
+      <circle class="medal-nail" cx="45" cy="45" r="2.5"></circle>
+      <circle class="medal-nail" cx="75" cy="45" r="2.5"></circle>
+      <path class="medal-star" d="m60 36 5.2 10.5 11.6 1.7-8.4 8.2 2 11.6L60 62.5l-10.4 5.5 2-11.6-8.4-8.2 11.6-1.7Z"></path>
+    </svg></span>`;
+  }
+  const nombreTrofeo = (t) => t ? t.charAt(0).toUpperCase() + t.slice(1) : '-';
+  const fmtMv = (x) => x == null ? '—' : x.toFixed(2) + ' mV';
+  const fmtMs = (x) => x == null ? '—' : Math.round(x) + ' ms';
+  const fmtHz = (x) => x == null ? '—' : x.toFixed(1) + ' Hz';
+  const fmtDur = (seg) => seg == null ? '—' : `${Math.floor(seg/60)}:${String(seg%60).padStart(2,'0')}`;
+
+  // Promedio y máximo de cada variable en UNA sesión (a partir de sus contracciones)
+  function estadisticasSesion(s){
+    if (!s) return null;
+    const c = Array.isArray(s.contractions) ? s.contractions : [];
+    const stat = (arr) => arr.length ? { avg: arr.reduce((a,b) => a + b, 0) / arr.length, max: Math.max(...arr) } : null;
+    if (c.length){
+      const conHz = (campo) => c.map(x => x[campo]).filter(v => typeof v === 'number' && Number.isFinite(v));
+      return { n: c.length, detallado: true, rms: stat(c.map(x => x.rms)), amp: stat(c.map(x => x.amp)), dur: stat(c.map(x => x.dur)),
+               mnf: stat(conHz('mnf')), mdf: stat(conHz('mdf')), nEspectro: conHz('mnf').length };
+    }
+    // Sesiones guardadas antes de este cambio: solo existe un valor por variable
+    return {
+      n: 0, detallado: false, mnf: null, mdf: null, nEspectro: 0,
+      rms: s.rms_mv != null ? { avg: s.rms_mv, max: null } : null,
+      amp: s.max_amplitude_mv != null ? { avg: null, max: s.max_amplitude_mv } : null,
+      dur: s.contraction_time_ms != null ? { avg: s.contraction_time_ms, max: null } : null
+    };
+  }
+
+  function renderPromediosSesion(){
+    const est = estadisticasSesion(sesionHistorialActual());
+    const set = (id, v) => { document.getElementById(id).textContent = v; };
+    document.getElementById('aggTitle').textContent = !est ? 'Promedio y máximo de esta sesión'
+      : est.detallado ? `Promedio y máximo de esta sesión (${est.n} contracciones)`
+      : 'Promedio y máximo de esta sesión (sesión anterior: solo se guardó un valor por variable)';
+    set('aggRmsAvg', fmtMv(est?.rms?.avg));  set('aggRmsMax', fmtMv(est?.rms?.max));
+    set('aggAmpAvg', fmtMv(est?.amp?.avg));  set('aggAmpMax', fmtMv(est?.amp?.max));
+    set('aggContAvg', fmtMs(est?.dur?.avg)); set('aggContMax', fmtMs(est?.dur?.max));
+    set('aggMnfAvg', fmtHz(est?.mnf?.avg));  set('aggMnfMax', fmtHz(est?.mnf?.max));
+    set('aggMdfAvg', fmtHz(est?.mdf?.avg));  set('aggMdfMax', fmtHz(est?.mdf?.max));
+    set('aggMnfTrend', 'Tendencia de la MNF: ' + textoTendenciaMnf(sesionHistorialActual()));
+  }
+
+  // Cambio de la MNF de la última contracción contra la primera (si baja, el músculo puede estar fatigándose)
+  function textoTendenciaMnf(s){
+    const c = (s && Array.isArray(s.contractions) ? s.contractions : []).filter(x => typeof x.mnf === 'number' && Number.isFinite(x.mnf));
+    if (c.length < 2) return c.length === 1 ? '1 contracción con MNF' : 'sin datos de MNF en esta sesión';
+    const cambio = (c[c.length - 1].mnf - c[0].mnf) / c[0].mnf * 100;
+    return (cambio > 0 ? '+' : '') + cambio.toFixed(1) + ' % (última contra primera, ' + c.length + ' contracciones)';
+  }
+
+  // Comentarios de la sesión que se está viendo (solo lectura; se escriben durante la sesión)
+  function renderComentarios(){
+    const container = document.getElementById('commentsList');
+    const s = sesionHistorialActual();
+    document.getElementById('commentsTitle').textContent = s ? `💬 Comentarios de la sesión #${historialActual.length - historialIndex}` : '💬 Comentarios';
+
+    if (!s){ container.innerHTML = '<p style="color:var(--ink-dim); font-size:12.5px;">Aún no hay sesiones.</p>'; return; }
+    if (errorComentarios){ container.innerHTML = `<p style="color:#ffb3b3; font-size:12.5px;">${escapar(errorComentarios)}</p>`; return; }
+
+    const lista = comentariosDeSesion(s);
+    if (lista.length === 0){ container.innerHTML = '<p style="color:var(--ink-dim); font-size:12.5px;">Esta sesión no tiene comentarios.</p>'; return; }
+    container.innerHTML = lista.map(c => {
+      const hora = c.created_at ? new Date(c.created_at).toLocaleString() : '';
+      return `<div class="comment-item"><span>${c.visibility === 'private' ? '🔒' : '📨'}</span><span style="flex:1;">${escapar(c.body)}</span>` +
+             (hora ? `<span style="font-size:10.5px; color:var(--ink-dim);">${hora}</span>` : '') + '</div>';
+    }).join('') + '<p style="font-size:10.5px; color:var(--ink-dim); margin:8px 0 0;">🔒 privado (solo tú) · 📨 visible para el paciente</p>';
+  }
+
+  // ------------------------------------------------------------
+  //  PDF: uno por sesión y uno completo
+  // ------------------------------------------------------------
+  function imagenGrafica(senal){
+    const c = document.createElement('canvas'); c.width = 900; c.height = 260;
+    const g = c.getContext('2d');
+    g.fillStyle = '#ffffff'; g.fillRect(0, 0, c.width, c.height);
+    g.strokeStyle = '#cfd8dc'; g.lineWidth = 1;
+    g.beginPath(); g.moveTo(0, c.height/2); g.lineTo(c.width, c.height/2); g.stroke();
+    if (senal && senal.length){
+      const maxAbs = Math.max(...senal.map(Math.abs), 0.01);
+      g.strokeStyle = '#1f7a3d'; g.lineWidth = 2; g.beginPath();
+      senal.forEach((v, i) => {
+        const x = i * (c.width / senal.length), y = c.height/2 - (v / maxAbs) * (c.height * 0.42);
+        i === 0 ? g.moveTo(x, y) : g.lineTo(x, y);
+      });
+      g.stroke();
+    } else {
+      g.fillStyle = '#78909c'; g.font = '20px sans-serif'; g.textAlign = 'center';
+      g.fillText('Sin senal guardada para esta sesion', c.width/2, c.height/2 - 10);
+    }
+    return c.toDataURL('image/png');
+  }
+
+  function nuevoPDF(subtitulo){
+    if (!window.jspdf){ alert('No se pudo cargar la librería de PDF. Revisa tu conexión a internet y recarga la página.'); return null; }
+    const doc = new window.jspdf.jsPDF();
+    doc.setFillColor(11, 61, 74); doc.rect(0, 0, 210, 26, 'F');
+    doc.setTextColor(255, 205, 60); doc.setFont('helvetica', 'bold'); doc.setFontSize(18); doc.text('Cyber Quack Rehab', 14, 12);
+    doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.text(subtitulo, 14, 20);
+    doc.setTextColor(0, 0, 0);
+    return doc;
+  }
+
+  function pieDePaginaPDF(doc){
+    const n = doc.getNumberOfPages();
+    for (let i = 1; i <= n; i++){
+      doc.setPage(i); doc.setFontSize(8); doc.setTextColor(120);
+      doc.text(`Generado el ${new Date().toLocaleString()}  -  Página ${i} de ${n}`, 14, 290);
+    }
+    doc.setTextColor(0);
+  }
+
+  // Dibuja una tabla sencilla; devuelve la nueva posición vertical
+  function tablaPDF(doc, y, cabecera, filas, anchos, tam){
+    const x0 = 14, alto = 7, total = anchos.reduce((a, b) => a + b, 0);
+    doc.setFontSize(tam || 9);
+    doc.setFillColor(230, 238, 240); doc.rect(x0, y - 5, total, alto, 'F');
+    doc.setFont('helvetica', 'bold');
+    let x = x0; cabecera.forEach((t, i) => { doc.text(String(t), x + 2, y); x += anchos[i]; });
+    doc.setFont('helvetica', 'normal'); y += alto;
+    filas.forEach(f => {
+      if (y > 278){ doc.addPage(); y = 20; }
+      x = x0; f.forEach((t, i) => { doc.text(String(t), x + 2, y); x += anchos[i]; });
+      doc.setDrawColor(220); doc.line(x0, y + 2, x0 + total, y + 2);
+      y += alto;
+    });
+    return y;
+  }
+
+  function escribirComentariosPDF(doc, y, s){
+    const bloques = comentariosDeSesion(s).map(c => [c.visibility === 'private' ? 'Privado' : 'Para el paciente', c.body]);
+    if (bloques.length === 0){ doc.setFontSize(9); doc.setTextColor(120); doc.text('Sin comentarios.', 14, y); doc.setTextColor(0); return y + 6; }
+    doc.setFontSize(9);
+    bloques.forEach(([tipo, texto]) => {
+      const lineas = doc.splitTextToSize(texto, 168);
+      if (y + lineas.length * 5 + 6 > 280){ doc.addPage(); y = 20; }
+      doc.setFont('helvetica', 'bold'); doc.text(`[${tipo}]`, 14, y);
+      doc.setFont('helvetica', 'normal');
+      lineas.forEach((l, i) => { doc.text(l, 42, y + i * 5); });
+      y += Math.max(lineas.length, 1) * 5 + 3;
+    });
+    return y;
+  }
+
+  function nombreArchivo(){ return selectedPatient.full_name.replace(/\s+/g, '_'); }
+
+  function pdfSesion(s, numero){
+    const doc = nuevoPDF('Reporte de sesión'); if (!doc) return;
+    let y = 38;
+    doc.setFontSize(13); doc.setFont('helvetica', 'bold'); doc.text(`Paciente: ${selectedPatient.full_name}`, 14, y); y += 7;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(11);
+    doc.text(`Sesión #${numero}  -  ${new Date(s.date).toLocaleString()}`, 14, y); y += 10;
+
+    const params = s.levels_configured != null ? `${s.levels_configured} niveles x ${s.jumps_per_level_configured} saltos por nivel` : '-';
+    const generales = [
+      ['Duración', s.duration_seconds != null ? fmtDur(s.duration_seconds) + ' min' : '-'],
+      ['Parámetros del juego', params],
+      ['Niveles completados', s.levels_completed ?? '-'],
+      ['Saltos buenos', s.total_jumps ?? 0],
+      ['Puntos', s.points_earned ?? 0],
+      ['Trofeo', nombreTrofeo(trofeoPorNiveles(s.levels_completed, s.trophy))]
+    ];
+    doc.setFontSize(10);
+    generales.forEach(([k, v]) => { doc.setTextColor(90); doc.text(k, 14, y); doc.setTextColor(0); doc.text(String(v), 70, y); y += 6; });
+    y += 4;
+
+    doc.setFontSize(11); doc.setFont('helvetica', 'bold'); doc.text('Señal EMG de la sesión', 14, y); doc.setFont('helvetica', 'normal'); y += 3;
+    doc.addImage(imagenGrafica(s.raw_signal), 'PNG', 14, y, 182, 52);
+    y += 62;
+
+    const est = estadisticasSesion(s);
+    doc.setFontSize(11); doc.setFont('helvetica', 'bold'); doc.text('Variables de la sesión', 14, y); doc.setFont('helvetica', 'normal'); y += 8;
+    y = tablaPDF(doc, y, ['Variable', 'Promedio', 'Máximo'], [
+      ['RMS', fmtMv(est.rms?.avg), fmtMv(est.rms?.max)],
+      ['Amplitud', fmtMv(est.amp?.avg), fmtMv(est.amp?.max)],
+      ['Tiempo de contracción', fmtMs(est.dur?.avg), fmtMs(est.dur?.max)],
+      ['MNF (frecuencia media)', fmtHz(est.mnf?.avg), fmtHz(est.mnf?.max)],
+      ['MDF (frecuencia mediana)', fmtHz(est.mdf?.avg), fmtHz(est.mdf?.max)]
+    ], [70, 55, 55]);
+    doc.setFontSize(8); doc.setTextColor(120);
+    doc.text(est.detallado ? `Calculado sobre ${est.n} contracciones de la sesión.` : 'Sesión anterior: solo se guardó un valor por variable.', 14, y + 2);
+    doc.text('Tendencia de la MNF: ' + textoTendenciaMnf(s), 14, y + 7);
+    doc.setTextColor(0); y += 17;
+
+    if (y > 250){ doc.addPage(); y = 20; }
+    doc.setFontSize(11); doc.setFont('helvetica', 'bold'); doc.text('Comentarios', 14, y); doc.setFont('helvetica', 'normal'); y += 7;
+    escribirComentariosPDF(doc, y, s);
+
+    pieDePaginaPDF(doc);
+    doc.save(`sesion_${numero}_${nombreArchivo()}.pdf`);
+  }
+
+  function pdfCompleto(){
+    const doc = nuevoPDF('Reporte completo de sesiones'); if (!doc) return;
+    let y = 38;
+    doc.setFontSize(13); doc.setFont('helvetica', 'bold'); doc.text(`Paciente: ${selectedPatient.full_name}`, 14, y); y += 7;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.text(`${historialActual.length} sesiones registradas`, 14, y); y += 10;
+
+    const cronologico = historialActual.map((s, i) => ({ s, numero: historialActual.length - i })).reverse();
+    const filas = cronologico.map(({ s, numero }) => {
+      const e = estadisticasSesion(s);
+      return [
+        numero, new Date(s.date).toLocaleDateString(), fmtDur(s.duration_seconds),
+        s.levels_configured != null ? `${s.levels_configured}x${s.jumps_per_level_configured}` : '-',
+        s.total_jumps ?? 0, s.points_earned ?? 0, trofeoPorNiveles(s.levels_completed, s.trophy) || '-',
+        e.rms?.avg != null ? e.rms.avg.toFixed(2) : '-',
+        e.amp?.max != null ? e.amp.max.toFixed(2) : '-',
+        e.dur?.avg != null ? Math.round(e.dur.avg) : '-'
+      ];
+    });
+    doc.setFontSize(11); doc.setFont('helvetica', 'bold'); doc.text('Resumen por sesión', 14, y); doc.setFont('helvetica', 'normal'); y += 8;
+    y = tablaPDF(doc, y, ['#', 'Fecha', 'Duración', 'Niv x sal', 'Saltos', 'Pts', 'Trofeo', 'RMS mV', 'Amp mV', 'Cont ms'],
+      filas, [9, 26, 20, 22, 16, 13, 20, 18, 18, 18], 8);
+    doc.setFontSize(8); doc.setTextColor(120);
+    doc.text('RMS y Cont = promedio de la sesión. Amp = máximo de la sesión.', 14, y + 2);
+    doc.setTextColor(0); y += 12;
+
+    // Promedios y máximos de todo el historial
+    const juntar = (campo, clave) => cronologico.map(({ s }) => estadisticasSesion(s)?.[campo]?.[clave]).filter(v => v != null);
+    const promedio = (arr) => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
+    const maximo = (arr) => arr.length ? Math.max(...arr) : null;
+    if (y > 245){ doc.addPage(); y = 20; }
+    doc.setFontSize(11); doc.setFont('helvetica', 'bold'); doc.text('Promedios y máximos de todo el historial', 14, y); doc.setFont('helvetica', 'normal'); y += 8;
+    y = tablaPDF(doc, y, ['Variable', 'Promedio de las sesiones', 'Máximo alcanzado'], [
+      ['RMS', fmtMv(promedio(juntar('rms', 'avg'))), fmtMv(maximo(juntar('rms', 'max')))],
+      ['Amplitud', fmtMv(promedio(juntar('amp', 'avg'))), fmtMv(maximo(juntar('amp', 'max')))],
+      ['Tiempo de contracción', fmtMs(promedio(juntar('dur', 'avg'))), fmtMs(maximo(juntar('dur', 'max')))],
+      ['MNF (frecuencia media)', fmtHz(promedio(juntar('mnf', 'avg'))), fmtHz(maximo(juntar('mnf', 'max')))],
+      ['MDF (frecuencia mediana)', fmtHz(promedio(juntar('mdf', 'avg'))), fmtHz(maximo(juntar('mdf', 'max')))]
+    ], [70, 60, 50]);
+    y += 10;
+
+    // Comentarios, sesión por sesión
+    const conComentarios = cronologico.filter(({ s }) => comentariosDeSesion(s).length);
+    if (conComentarios.length){
+      if (y > 250){ doc.addPage(); y = 20; }
+      doc.setFontSize(11); doc.setFont('helvetica', 'bold'); doc.text('Comentarios por sesión', 14, y); doc.setFont('helvetica', 'normal'); y += 7;
+      conComentarios.forEach(({ s, numero }) => {
+        if (y > 262){ doc.addPage(); y = 20; }
+        doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.text(`Sesión #${numero}`, 14, y); doc.setFont('helvetica', 'normal'); y += 6;
+        y = escribirComentariosPDF(doc, y, s) + 2;
+      });
+    }
+
+    pieDePaginaPDF(doc);
+    doc.save(`historial_${nombreArchivo()}.pdf`);
+  }
+
+  document.getElementById('btnPdfSesion').onclick = () => {
+    const s = sesionHistorialActual();
+    if (!s){ alert('Este paciente todavía no tiene sesiones.'); return; }
+    pdfSesion(s, historialActual.length - historialIndex);
+  };
+  document.getElementById('btnPdfCompleto').onclick = () => {
+    if (historialActual.length === 0){ alert('Este paciente todavía no tiene sesiones.'); return; }
+    pdfCompleto();
+  };
+
+  // ============================================================
+  //  SENSORES DEL FISIO: se registran una vez y, en cada sesión,
+  //  se elige cuál usa el paciente (un sensor = un paciente a la vez)
+  // ============================================================
+  let misSensores = [];   // [{ code, name, patient_id }]  (solo los de este fisio)
+
+  // Acepta "QUACK-7F3A", "quack7f3a" o solo "7f3a"
+  function normalizarCodigoSensor(texto){
+    const m = String(texto).trim().toUpperCase().replace(/\s+/g, '').match(/^(?:QUACK-?)?([0-9A-F]{4})$/);
+    return m ? 'QUACK-' + m[1] : null;
+  }
+
+  function etiquetaSensor(s){ return s.name ? `${s.name} (${s.code})` : s.code; }
+
+  function nombrePaciente(id){
+    const p = (currentPatients || []).find(x => x.id === id);
+    return p ? p.full_name : 'otro paciente';
+  }
+
+  function sensorDeEstePaciente(){
+    return selectedPatient ? (misSensores.find(s => s.patient_id === selectedPatient.id) || null) : null;
+  }
+
+  function textoErrorSensor(error, accion){
+    const t = (error && error.message) || '';
+    if (error && (error.code === '42P01' || error.code === '42703' || error.code === 'PGRST202' || /does not exist|schema cache|Could not find/.test(t)))
+      return 'Falta correr el SQL de sensores en Supabase (sql/01_sensores_por_fisio.sql y sql/02_conectar_sensor.sql).';
+    if (error && error.code === '42501') return 'Supabase no te dejó ' + accion + ' (permisos).';
+    return 'No se pudo ' + accion + ': ' + (t || (error && error.code) || 'error desconocido');
+  }
+
+  function escucharSensor(codigo){
+    if (sensorChannel){ supabaseClient.removeChannel(sensorChannel); sensorChannel = null; }
+    sensorCodigoActual = codigo || null;
+    ultimaSenalSensorTs = 0;
+    if (!codigo) return;
+    // El sensor manda a "sensor_<codigo>" el mismo tipo de paquete que ya sabe leer la gráfica
+    sensorChannel = supabaseClient.channel('sensor_' + codigo, { config: { broadcast: { self: false } } })
+      .on('broadcast', { event: 'emg_batch' }, (msg) => { ultimaSenalSensorTs = Date.now(); procesarLoteSensor(msg.payload); })
+      .subscribe();
+  }
+
+  function pintarSensor(){
+    const sel = document.getElementById('sensorSelect');
+    const valorPrevio = sel.value;
+    const actual = sensorDeEstePaciente();
+    sel.innerHTML = '';
+    sel.add(new Option(misSensores.length ? 'Elige un sensor…' : 'Sin sensores guardados: conecta uno con su código', ''));
+    for (const s of misSensores){
+      let txt = etiquetaSensor(s);
+      if (actual && s.code === actual.code) txt += ' · asignado a este paciente';
+      else if (s.patient_id) txt += ' · en uso con ' + nombrePaciente(s.patient_id);
+      sel.add(new Option(txt, s.code));
+    }
+    if (actual) sel.value = actual.code;
+    else if (valorPrevio && misSensores.some(s => s.code === valorPrevio)) sel.value = valorPrevio;
+    document.getElementById('btnSensorDesvincular').style.display = actual ? 'inline-block' : 'none';
+    document.getElementById('btnSensorUsar').disabled = misSensores.length === 0;
+    document.getElementById('btnSensorEliminar').disabled = misSensores.length === 0;
+    document.getElementById('sensorNuevoDetalle').open = misSensores.length === 0;   // sin sensores: abre el formulario
+    refrescarIndicadorSensor();
+  }
+
+  // Cada medio segundo revisa si está llegando señal del sensor
+  function refrescarIndicadorSensor(){
+    const el = document.getElementById('sensorEstado');
+    if (!sensorCodigoActual){ el.style.color = 'var(--ink-dim)'; el.textContent = 'Este paciente no tiene sensor conectado. Escribe el código del sensor y presiona Conectar.'; return; }
+    const recibiendo = Date.now() - ultimaSenalSensorTs < 2500;
+    el.style.color = recibiendo ? '#9fe870' : 'var(--ink-dim)';
+    const perdidos = procSensor.paquetesPerdidos ? ` (paquetes perdidos: ${procSensor.paquetesPerdidos})` : '';
+    const fuente = procSensor.fuenteEnv === 'sensor' ? ' · envolvente del sensor'
+                 : procSensor.fuenteEnv === 'sin envolvente' ? ' · ⚠ el sensor no manda envolvente (¿firmware viejo?)' : '';
+    el.textContent = recibiendo ? `● ${sensorCodigoActual} asignado · recibiendo señal${fuente}${perdidos}`
+                                : `○ ${sensorCodigoActual} asignado · sin señal (¿está encendido y con WiFi?)`;
+  }
+  setInterval(refrescarIndicadorSensor, 500);
+
+  // Lee la lista de sensores de este fisio. Devuelve el error (o null)
+  async function cargarMisSensores(){
+    const { data, error } = await supabaseClient.from('sensors').select('code, name, patient_id')
+      .eq('paired_by', currentUser.id).order('code');
+    if (error){ misSensores = []; return error; }
+    misSensores = data || [];
+    return null;
+  }
+
+  // Se llama al abrir un paciente: carga la lista y escucha el sensor que ya tenga asignado
+  async function cargarSensor(patientId){
+    const msg = document.getElementById('sensorMensaje'); msg.textContent = '';
+    try {
+      const error = await cargarMisSensores();
+      if (error){
+        escucharSensor(null); pintarSensor();
+        msg.style.color = '#ffb3b3'; msg.textContent = textoErrorSensor(error, 'leer los sensores');
+        return;
+      }
+      const actual = misSensores.find(s => s.patient_id === patientId);
+      escucharSensor(actual ? actual.code : null);
+    } catch (e) { escucharSensor(null); }
+    pintarSensor();
+  }
+
+  // Asigna un sensor a un paciente (o lo libera con null). Todo en una sola operación en Supabase
+  async function asignarSensor(codigo, pacienteId){
+    const { error } = await supabaseClient.rpc('asignar_sensor', { p_code: codigo, p_patient: pacienteId });
+    return error;
+  }
+
+  document.getElementById('btnSensorUsar').onclick = async () => {
+    if (!selectedPatient) return;
+    const msg = document.getElementById('sensorMensaje');
+    msg.style.color = '#ffb3b3';
+    const codigo = document.getElementById('sensorSelect').value;
+    if (!codigo){ msg.textContent = 'Elige un sensor de la lista.'; return; }
+    const s = misSensores.find(x => x.code === codigo);
+    if (s && s.patient_id === selectedPatient.id){ msg.style.color = 'var(--ink-dim)'; msg.textContent = 'Ese sensor ya está asignado a este paciente.'; return; }
+    if (s && s.patient_id && !confirm(`El sensor ${etiquetaSensor(s)} está en uso con ${nombrePaciente(s.patient_id)}. ¿Pasarlo a ${selectedPatient.full_name}?`)) return;
+    msg.style.color = 'var(--ink-dim)'; msg.textContent = 'Asignando...';
+    const error = await asignarSensor(codigo, selectedPatient.id);
+    if (error){ msg.style.color = '#ffb3b3'; msg.textContent = textoErrorSensor(error, 'asignar el sensor'); return; }
+    await cargarSensor(selectedPatient.id);
+    msg.style.color = 'var(--duck-yellow)'; msg.textContent = `✓ ${codigo} asignado a ${selectedPatient.full_name}. Avisa al paciente que abra el juego después de este paso.`;
+  };
+
+  // Conectar: con el código, el sensor queda conectado a ESTE paciente en un solo paso.
+  // Si estaba con otro paciente (o registrado por otra cuenta de fisio), se le quita.
+  document.getElementById('btnSensorVincular').onclick = async () => {
+    const msg = document.getElementById('sensorMensaje');
+    msg.style.color = '#ffb3b3';
+    if (!selectedPatient){ msg.textContent = 'Abre primero un paciente.'; return; }
+    const codigo = normalizarCodigoSensor(document.getElementById('sensorCodigoInput').value);
+    if (!codigo){ msg.textContent = 'El código debe verse como QUACK-7F3A (4 letras o números al final).'; return; }
+    const mio = misSensores.find(s => s.code === codigo);
+    if (mio && mio.patient_id === selectedPatient.id){ msg.style.color = 'var(--ink-dim)'; msg.textContent = 'Ese sensor ya está conectado a este paciente.'; return; }
+    if (mio && mio.patient_id && !confirm(`El sensor ${codigo} está en uso con ${nombrePaciente(mio.patient_id)}. ¿Pasarlo a ${selectedPatient.full_name}?`)) return;
+    if (!mio && !confirm(`Si el sensor ${codigo} lo está usando otra persona del equipo, se le va a quitar. ¿Conectarlo a ${selectedPatient.full_name}?`)) return;
+    msg.style.color = 'var(--ink-dim)'; msg.textContent = 'Conectando...';
+    const { error } = await supabaseClient.rpc('conectar_sensor', { p_code: codigo, p_patient: selectedPatient.id });
+    if (error){ msg.style.color = '#ffb3b3'; msg.textContent = textoErrorSensor(error, 'conectar el sensor'); return; }
+    document.getElementById('sensorCodigoInput').value = '';
+    await cargarSensor(selectedPatient.id);
+    document.getElementById('sensorNuevoDetalle').open = false;
+    msg.style.color = 'var(--duck-yellow)'; msg.textContent = `✓ ${codigo} conectado a ${selectedPatient.full_name}. Avisa al paciente que abra el juego después de este paso.`;
+  };
+
+  // Desvincular: el sensor se queda en tu lista, solo deja de estar con este paciente
+  document.getElementById('btnSensorDesvincular').onclick = async () => {
+    const actual = sensorDeEstePaciente();
+    if (!selectedPatient || !actual) return;
+    if (!confirm(`¿Desconectar el sensor ${etiquetaSensor(actual)} de este paciente? Después lo puedes conectar con otro.`)) return;
+    const msg = document.getElementById('sensorMensaje');
+    const error = await asignarSensor(actual.code, null);
+    if (error){ msg.style.color = '#ffb3b3'; msg.textContent = textoErrorSensor(error, 'desvincular el sensor'); return; }
+    await cargarSensor(selectedPatient.id);
+    msg.style.color = 'var(--ink-dim)'; msg.textContent = 'Sensor desconectado. Lo puedes conectar con otro paciente.';
+  };
+
+  // 🗑: borra el sensor elegido de tu lista (para códigos mal escritos o sensores que ya no usas)
+  document.getElementById('btnSensorEliminar').onclick = async () => {
+    const msg = document.getElementById('sensorMensaje');
+    const codigo = document.getElementById('sensorSelect').value;
+    if (!codigo){ msg.style.color = '#ffb3b3'; msg.textContent = 'Elige primero el sensor que quieres quitar de tu lista.'; return; }
+    const s = misSensores.find(x => x.code === codigo);
+    const uso = (s && s.patient_id) ? ` Ahora está en uso con ${nombrePaciente(s.patient_id)}.` : '';
+    if (!confirm(`¿Quitar ${s ? etiquetaSensor(s) : codigo} de tu lista?${uso}`)) return;
+    const { error } = await supabaseClient.from('sensors').delete().eq('code', codigo).eq('paired_by', currentUser.id);
+    if (error){ msg.style.color = '#ffb3b3'; msg.textContent = textoErrorSensor(error, 'quitar el sensor'); return; }
+    await cargarSensor(selectedPatient ? selectedPatient.id : null);
+    msg.style.color = 'var(--ink-dim)'; msg.textContent = `Sensor ${codigo} quitado de tu lista.`;
+  };
+
+  document.getElementById('btnExitSession').onclick = async () => {
+    drawingActive = false;
+    if (sessionBroadcastChannel) supabaseClient.removeChannel(sessionBroadcastChannel);
+    escucharSensor(null);
+
+    if (selectedPatient){
+      await supabaseClient.from('live_session_state').upsert({
+        patient_id: selectedPatient.id, patient_ready: false, physio_authorized: false, session_active: false
+      });
+    }
+
+    document.getElementById('confirmStatus').className = 'status-pill waiting';
+    document.getElementById('confirmStatus').textContent = 'Esperando confirmación';
+
+    show('viewDashboard');
+    cargarPacientes();
+  };
+
+  document.getElementById('btnLogout').onclick = async () => {
+    await supabaseClient.auth.signOut();
+    window.location.href = '../index.html';
+  };
+
+  init();
+</script>
+</body>
+</html>
