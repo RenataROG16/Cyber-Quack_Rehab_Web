@@ -29,9 +29,11 @@
 
   #gameArea{ flex: 1; min-width: 0; min-height: 0; position: relative; overflow: hidden; background: #d9f0e3; }
   .landscape{ position: absolute; inset: 0; overflow: hidden; transition: transform 1.25s cubic-bezier(.68,0,.32,1); }
-  #sky{ position: absolute; inset: 0; background: linear-gradient(180deg, #a9ddf3 0%, #d9f0e3 70%); transition: filter 0.6s; }
+  #sky{ position: absolute; inset: 0; background: #a9ddf3 url("assets/fondo.jpg") center bottom / cover no-repeat; }
+  /* Tinte de atardecer: sube de nivel en nivel y llega al máximo en el último */
+  #tinte{ position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 1s;
+    background: linear-gradient(180deg, rgba(98,78,120,.9) 0%, rgba(208,128,116,.75) 48%, rgba(245,187,120,.6) 100%); }
   #sky::after{ content: ""; position: absolute; inset: 0; opacity: 0; pointer-events: none; background: repeating-linear-gradient(168deg, transparent 0 28px, rgba(255,255,255,0.25) 29px 31px, transparent 32px 68px); transition: opacity .5s; }
-  #gameArea.final-level #sky{ background: linear-gradient(180deg, #624e78 0%, #d08074 48%, #f5bb78 100%); }
   #gameArea.final-level #sky::after{ opacity: .48; animation: finalWind 1.8s linear infinite; }
   @keyframes finalWind{ to{ background-position: 0 100px; } }
   .mountain{ position: absolute; bottom: 90px; width: 0; height: 0; border-style: solid; opacity: 0.55; }
@@ -47,14 +49,14 @@
   #gameArea.final-level #ground::before{ content: ""; position: absolute; inset: -24px 0 auto; height: 24px; background: radial-gradient(ellipse at 18% 100%, rgba(244,190,126,.38), transparent 60%), radial-gradient(ellipse at 75% 100%, rgba(244,190,126,.32), transparent 56%); }
 
   /* El salto lo anima JavaScript cuadro por cuadro (animarSalto): parábola + estela + polvo */
-  #duckTrack{ position: absolute; bottom: 90px; left: 8%; font-size: 60px; z-index: 5; }
+  #duckTrack{ position: absolute; bottom: var(--suelo, 96px); left: 8%; font-size: 60px; z-index: 5; }
   #duckTrack .duck-body{ position: relative; z-index: 1; transform-origin: 50% 100%; will-change: transform; }
   #duckTrack .duck-shadow{ position: absolute; left: 50%; bottom: -5px; width: 70%; height: 10px; margin-left: -35%; border-radius: 50%; background: rgba(30,50,25,.32); transform-origin: 50% 50%; }
   /* Estela: puntitos que dibujan el arco del salto y se desvanecen */
   .jump-trail{ position: absolute; z-index: 4; width: 9px; height: 9px; margin: 0 0 -4px -4px; border-radius: 50%; background: #fff6c2; box-shadow: 0 0 6px rgba(255,214,90,.9); pointer-events: none; animation: trailFade .9s ease-out forwards; }
   @keyframes trailFade{ from{ opacity: .95; transform: scale(1); } to{ opacity: 0; transform: scale(.3); } }
   /* Polvito al despegar y aterrizar */
-  .jump-dust{ position: absolute; z-index: 4; bottom: 88px; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; background: rgba(240,232,205,.85); pointer-events: none; animation: dustPuff .5s ease-out forwards; }
+  .jump-dust{ position: absolute; z-index: 4; bottom: calc(var(--suelo, 96px) - 2px); width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; background: rgba(240,232,205,.85); pointer-events: none; animation: dustPuff .5s ease-out forwards; }
   @keyframes dustPuff{ from{ opacity: .9; transform: translate(0,0) scale(.6); } to{ opacity: 0; transform: translate(var(--dx), -10px) scale(1.6); } }
   #duckTrack .duck-pose{ display: none; width: clamp(76px, 9vw, 112px); height: auto; filter: drop-shadow(0 5px 3px rgba(38,42,37,.22)); }
   #duckTrack[data-pose="rest"] .pose-rest, #duckTrack[data-pose="jump"] .pose-jump{ display: block; }
@@ -74,7 +76,7 @@
   #puddle{ position: absolute; bottom: 78px; left: 70%; width: 130px; height: 16px; background: #6fb6d9; border-radius: 50%; opacity: 0.65; }
   #gameArea.final-level #puddle{ display: none; }
 
-  #progressBar{ position: absolute; bottom: 90px; left: 8%; right: 18%; height: 3px; background: rgba(0,0,0,0.15); }
+  #progressBar{ position: absolute; bottom: var(--suelo, 96px); left: 8%; right: 18%; height: 3px; background: rgba(0,0,0,0.15); }
   #progressFill{ height: 100%; background: var(--duck-yellow); width: 0%; transition: width 0.4s; }
 
   #zoneIndicator{ position: absolute; z-index: 8; top: 24px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.45); color: white; padding: 12px 28px; border-radius: 999px; font-size: 17px; font-weight: 700; font-family: var(--display); text-align: center; max-width: 80%; }
@@ -170,15 +172,12 @@
     #btnCerrarSesion, .sound-toggle{ grid-column: span 1; }
     #gameArea.final-level #levelBadge{ font-size: 12px; }
   }
-  /* --- Valla (obstáculo): su altura es el % de contracción que exige el nivel --- */
-  #valla{ position: absolute; z-index: 4; bottom: 90px; left: 0; width: 46px; height: 40px; display: none; pointer-events: none; will-change: transform, opacity; transform-origin: 50% 100%; }
-  #valla .v-poste{ position: absolute; bottom: 0; width: 9px; height: 100%; background: #8a6240; border: 2px solid #5c4027; box-sizing: border-box; }
-  #valla .v-poste.izq{ left: 0; } #valla .v-poste.der{ right: 0; }
-  #valla .v-barra{ position: absolute; left: -4px; right: -4px; height: 11px; border: 2px solid #5c4027; box-sizing: border-box; border-radius: 2px;
-    background: repeating-linear-gradient(90deg, #f6efd9 0 9px, #d9534a 9px 18px); }
-  #valla .v-barra.alta{ top: 0; }
-  #valla .v-barra.media{ top: 46%; display: none; }
-  #valla.grande .v-barra.media{ display: block; }
+  /* --- Valla (obstáculo): cerca de madera como la del paisaje; su altura es el % de contracción que exige el nivel --- */
+  #valla{ position: absolute; z-index: 4; bottom: var(--suelo, 96px); left: 0; width: 72px; height: 40px; display: none; pointer-events: none; will-change: transform, opacity; transform-origin: 50% 100%; }
+  #valla .v-poste{ position: absolute; bottom: 0; width: 10px; height: 100%; background: #a8774f; border-radius: 1px; }
+  #valla .p1{ left: 0; } #valla .p2{ left: calc(50% - 5px); background: #7d5535; } #valla .p3{ right: 0; }
+  #valla .v-riel{ position: absolute; left: -6px; right: -6px; height: 10%; min-height: 5px; max-height: 12px; background: #b98859; border-radius: 1px; box-shadow: 0 1px 0 rgba(70,40,20,.25); }
+  #valla .r1{ top: 22%; } #valla .r2{ top: 58%; }
   #valla.cae{ animation: vallaCae .6s ease-in forwards; }
   @keyframes vallaCae{ 0%{ transform: translate3d(var(--vx), 0, 0) rotate(0); opacity: 1; } 100%{ transform: translate3d(calc(var(--vx) + 46px), 14px, 0) rotate(68deg); opacity: 0; } }
 
@@ -230,7 +229,7 @@
       <p id="nivelTexto">—</p>
     </div>
 
-    <button id="soundToggle" class="btn sound-toggle" type="button" aria-pressed="false">🔇 Activar cuac</button>
+    <button id="soundToggle" class="btn sound-toggle" type="button" aria-pressed="false">🔇 Activar sonido</button>
     <div id="statusBox"><p id="statusText">Esperando a tu fisioterapeuta...</p><p id="debugText" style="margin-top:8px; font-size:10.5px; color:#ffb3b3; font-weight:500; word-break:break-word;"></p></div>
     <button id="btnCerrarSesion" style="padding:11px; font-size:12.5px; font-weight:700; border-radius:8px; background:transparent; color:#ffb3b3; border:1px solid #ff6b6b; cursor:pointer; font-family:var(--sans);">Cerrar sesión</button>
   </div>
@@ -238,25 +237,14 @@
   <div id="gameArea">
     <div class="landscape" id="landscape">
       <div id="sky"></div>
-      <div class="mountain m1"></div>
-      <div class="mountain m2"></div>
-      <div class="mountain m3"></div>
-      <div id="cloudsLayer" class="clouds-layer"></div>
-      <div id="flowersLayer" class="flowers-layer"></div>
-      <div id="ground"></div>
-      <div id="puddle"></div>
-      <div id="fence">
-        <div class="post"></div><div class="rail top"></div><div class="rail bottom"></div>
-        <div class="post"></div>
-        <div class="post"></div>
-      </div>
+      <div id="tinte"></div>
     </div>
 
     <div id="levelBadge">Nivel 1</div>
     <div id="zoneIndicator">Esperando a tu fisioterapeuta...</div>
 
     <div id="progressBar"><div id="progressFill"></div></div>
-    <div id="valla" aria-hidden="true"><div class="v-poste izq"></div><div class="v-poste der"></div><div class="v-barra alta"></div><div class="v-barra media"></div></div>
+    <div id="valla" aria-hidden="true"><i class="v-poste p1"></i><i class="v-poste p2"></i><i class="v-poste p3"></i><i class="v-riel r1"></i><i class="v-riel r2"></i></div>
     <div id="guia" role="timer" aria-live="polite" data-estado="relaja">
       <div class="g-ring">
         <svg viewBox="0 0 120 120" aria-hidden="true"><circle class="g-fondo" cx="60" cy="60" r="52"></circle><circle class="g-arco" cx="60" cy="60" r="52" pathLength="100"></circle></svg>
@@ -347,7 +335,28 @@
   let inicioContraccionTs = 0, picoEnvolventePct = 0;
   let ultimaContraccionMs = 0;
 
-  const duckStartLeft = 8, duckEndLeft = 60, fenceLeft = 72;
+  // El fondo (assets/fondo.jpg) mide 1203 × 768. El pato y las vallas pisan a 96 px del borde de abajo en esa imagen,
+  // y el estanque empieza a 796 px a la izquierda. Con cualquier tamaño de pantalla se recalcula dónde queda el piso.
+  const FONDO = { w: 1203, h: 768, suelo: 96, estanque: 796 };
+  const duckStartLeft = 8;
+  let duckEndLeft = 46;                 // % donde termina el camino del pato en cada nivel (se ajusta para no llegar al estanque)
+  let sueloPx = 96, limitePastoPx = 800;
+  function ajustarEscena(){
+    const area = document.getElementById('gameArea'), duck = document.getElementById('duckTrack');
+    const W = area.clientWidth, H = area.clientHeight;
+    if (!W || !H) return;
+    const escala = Math.max(W / FONDO.w, H / FONDO.h);               // la imagen se ajusta como "cover", pegada abajo y centrada
+    const desfase = (FONDO.w * escala - W) / 2;
+    sueloPx = Math.round(FONDO.suelo * escala);
+    limitePastoPx = FONDO.estanque * escala - desfase;
+    area.style.setProperty('--suelo', sueloPx + 'px');
+    // el pato termina cada nivel con la valla todavía sobre el pasto, antes del estanque
+    const mitadPato = (duck.offsetWidth || 100) / 2;
+    const finPx = limitePastoPx - 36 - 24 - 110 - mitadPato;
+    duckEndLeft = Math.max(duckStartLeft + 22, Math.min(60, (finPx / W) * 100));
+    vallaGeo = null;
+  }
+  window.addEventListener('resize', ajustarEscena);
   let audioContext = null, sonidoActivado = false;
 
   // ============================================================
@@ -505,6 +514,7 @@
     if (!user){ window.location.href = '../index.html'; return; }
     currentUser = user;
 
+    ajustarEscena();
     const { data } = await supabaseClient.from('game_config').select('*').eq('patient_id', user.id).maybeSingle();
     config = data || {};
     calcularMaxPuntos(); pintarPuntaje();
@@ -532,33 +542,8 @@
     conectarSensor();
   }
 
-  function generarNubesYFlores(paisaje = document.getElementById('landscape')){
-    const clouds = paisaje.querySelector('.clouds-layer');
-    const flowers = paisaje.querySelector('.flowers-layer');
-    clouds.textContent = '';
-    flowers.textContent = '';
-    for (let i = 0; i < 4; i++){
-      const w = 50 + Math.random()*40;
-      const el = document.createElement('div');
-      el.className = 'cloud';
-      el.style.width = w + 'px'; el.style.height = (w*0.45) + 'px';
-      el.style.top = (10 + Math.random()*25) + '%'; el.style.left = (Math.random()*90) + '%';
-      clouds.appendChild(el);
-    }
-    const flowerColors = ['#ff6b9d','#ff9f40','#ffffff','#c77dff'];
-    const usedSpots = [];
-    for (let i = 0; i < 6; i++){
-      let left;
-      do { left = 3 + Math.random()*72; } while (usedSpots.some(s => Math.abs(s-left) < 9));
-      usedSpots.push(left);
-      const color = flowerColors[Math.floor(Math.random()*flowerColors.length)];
-      const el = document.createElement('div');
-      el.className = 'flower';
-      el.style.left = left + '%'; el.style.bottom = (90 + Math.random()*14) + 'px';
-      el.style.boxShadow = `5px 0 0 ${color}, -5px 0 0 ${color}, 0 5px 0 ${color}, 0 -5px 0 ${color}`;
-      flowers.appendChild(el);
-    }
-  }
+  // Las nubes, flores, montañas y estanque vienen dibujados en assets/fondo.jpg
+  function generarNubesYFlores(){}
 
   // ============================================================
   //  CONTROL REMOTO: el fisio dispara todo desde su pantalla.
@@ -857,7 +842,7 @@
     const punto = document.createElement('div');
     punto.className = 'jump-trail';
     punto.style.left = (duck.offsetLeft + duck.offsetWidth / 2) + 'px';
-    punto.style.bottom = (90 + duck.offsetHeight * 0.45 + y) + 'px';
+    punto.style.bottom = (sueloPx + duck.offsetHeight * 0.45 + y) + 'px';
     document.getElementById('gameArea').appendChild(punto);
     setTimeout(() => punto.remove(), 950);
   }
@@ -875,9 +860,19 @@
     });
   }
 
+  // El paisaje se va poniendo más cálido de nivel en nivel; el último nivel es el atardecer
+  function aplicarTinte(){
+    const t = document.getElementById('tinte');
+    if (!t || !config || !config.total_levels) return;
+    const n = config.total_levels;
+    const f = n > 1 ? (nivelActual - 1) / (n - 1) : 0;
+    t.style.opacity = (nivelActual === n && n > 1) ? '0.5' : (0.3 * f).toFixed(2);
+  }
+
   function actualizarAmbienteNivel(){
     const esFinal = config && config.total_levels && nivelActual === config.total_levels;
     document.getElementById('gameArea').classList.toggle('final-level', !!esFinal);
+    aplicarTinte();
     if (config && config.total_levels){
       document.getElementById('levelBadge').textContent = esFinal
         ? `⚡ Nivel final · ${nivelActual} de ${config.total_levels}`
@@ -919,7 +914,7 @@
   //  llega justo cuando se completa el tiempo. Si lo logra, el pato salta y la valla pasa por debajo; si no, la valla lo frena.
   // ------------------------------------------------------------
   const vallaEl = document.getElementById('valla');
-  const VALLA_ANCHO = 46;
+  const VALLA_ANCHO = 72;
   let vallaX = 0, vallaModo = 'oculta', vallaTween = null, vallaRaf = 0, vallaUltimoTs = 0, vallaCiclo = 0;
   let vallaGeo = null, vallaGeoTs = 0;
 
@@ -927,10 +922,11 @@
     const area = document.getElementById('gameArea'), duck = document.getElementById('duckTrack');
     const W = area.clientWidth, H = area.clientHeight;
     const centroPato = duck.offsetLeft + duck.offsetWidth / 2;
-    const gap = Math.max(90, Math.min(W * 0.32, 420, W - centroPato - 60));
-    const park = Math.min(centroPato + gap, W - 40);
+    const maxPark = limitePastoPx - VALLA_ANCHO / 2 - 24;                // la valla se queda sobre el pasto, no en el estanque
+    const gap = Math.max(90, Math.min(W * 0.3, 400));
+    const park = Math.max(centroPato + 90, Math.min(centroPato + gap, maxPark));
     const pasoPx = config && config.jumps_per_level ? (W * (duckEndLeft - duckStartLeft) / 100) / config.jumps_per_level : 0;
-    return { W, H, centroPato, park, spawn: W + 60, pasoPx, frente: centroPato + duck.offsetWidth * 0.42 };
+    return { W, H, centroPato, park, spawn: park + Math.max(180, W * 0.26), pasoPx, frente: centroPato + duck.offsetWidth * 0.42 };
   }
   function geoValla(){
     const ahora = performance.now();
@@ -951,7 +947,6 @@
     vallaCiclo++;
     vallaGeo = geometriaJuego(); vallaGeoTs = performance.now();
     vallaEl.style.height = alturaValla(pct, vallaGeo.H) + 'px';
-    vallaEl.classList.toggle('grande', alturaValla(pct, vallaGeo.H) >= 70);
     vallaEl.classList.remove('cae');
     vallaEl.style.opacity = '1';
     vallaEl.style.display = 'block';
@@ -990,6 +985,9 @@
       if (!enPausa){
         const obj = objetivoValla(geoValla());
         vallaX += (obj - vallaX) * (1 - Math.exp(-dt / 90));    // suaviza: los datos llegan a ráfagas
+        const g = geoValla();
+        // al venir de lejos aparece poco a poco (así no se ve pasar sobre el estanque)
+        vallaEl.style.opacity = vallaModo === 'relaja' ? String(Math.max(0, Math.min(1, (g.spawn - vallaX) / (0.3 * (g.spawn - g.park))))) : '1';
         pintarValla();
       }
     }
@@ -1240,6 +1238,7 @@
     document.getElementById('celebrationText').textContent = esFinal ? '¡Completaste el último nivel!' : `¡Nivel ${nivelActual} completado!`;
     document.getElementById('celebration').classList.add('show');
     lanzarConfeti();
+    reproducirGrabado('nivel', 0.8);          // sonido de éxito en cada nivel
 
     setTimeout(() => {
       document.getElementById('celebration').classList.remove('show');
@@ -1251,7 +1250,6 @@
         nivelActual++;
         saltosBuenosNivel = 0;
         avanzando = false;
-        document.getElementById('sky').style.filter = `hue-rotate(${(nivelActual-1)*18}deg)`;
         if (saltoActual) saltoActual.terminar();
         const patoReinicio = document.getElementById('duckTrack');
         patoReinicio.style.left = duckStartLeft + '%';
@@ -1304,7 +1302,7 @@
     boton.disabled = !disponible;
     boton.setAttribute('aria-pressed', String(sonidoActivado));
     boton.textContent = !disponible ? '🔇 Audio no disponible'
-      : sonidoActivado ? '🔊 Sonido activado' : '🔇 Activar cuac';
+      : sonidoActivado ? '🔊 Sonido activado' : '🔇 Activar sonido';
   }
 
   function activarAudio(){
@@ -1312,7 +1310,7 @@
     if (!sonidoActivado || !AudioContextDelNavegador) return;
     if (!audioContext){
       audioContext = new AudioContextDelNavegador();
-      cargarCuacGrabado();
+      cargarSonidosGrabados();
     }
     if (audioContext.state === 'suspended'){
       audioContext.resume().catch(() => {
@@ -1322,14 +1320,27 @@
     }
   }
 
-  // Si existe assets/cuac.mp3 (una grabación real) se usa esa; si no, se sintetiza.
+  // Sonidos grabados (carpeta assets): cuac.mp3 en cada salto, nivel.mp3 al completar un nivel y ganador.mp3 al completar toda la sesión.
+  // Si falta cuac.mp3 el cuac se sintetiza; si faltan los otros dos, simplemente no suenan.
   let cuacGrabado = null;
-  function cargarCuacGrabado(){
-    fetch('assets/cuac.mp3')
-      .then(r => { if (!r.ok) throw new Error('sin archivo'); return r.arrayBuffer(); })
-      .then(datos => new Promise((ok, falla) => audioContext.decodeAudioData(datos, ok, falla)))
-      .then(buffer => { cuacGrabado = buffer; })
-      .catch(() => { cuacGrabado = null; });
+  const sonidosGrabados = { nivel: null, ganador: null };
+  function cargarSonidosGrabados(){
+    ['cuac', 'nivel', 'ganador'].forEach(nombre => {
+      fetch(`assets/${nombre}.mp3`)
+        .then(r => { if (!r.ok) throw new Error('sin archivo'); return r.arrayBuffer(); })
+        .then(datos => new Promise((ok, falla) => audioContext.decodeAudioData(datos, ok, falla)))
+        .then(buffer => { if (nombre === 'cuac') cuacGrabado = buffer; else sonidosGrabados[nombre] = buffer; })
+        .catch(() => { if (nombre === 'cuac') cuacGrabado = null; else sonidosGrabados[nombre] = null; });
+    });
+  }
+  function reproducirGrabado(nombre, volumen){
+    const buffer = sonidosGrabados[nombre];
+    if (!sonidoActivado || !audioContext || audioContext.state !== 'running' || !buffer) return false;
+    const fuente = audioContext.createBufferSource(), ganancia = audioContext.createGain();
+    fuente.buffer = buffer; ganancia.gain.value = volumen;
+    fuente.connect(ganancia); ganancia.connect(audioContext.destination);
+    fuente.start();
+    return true;
   }
 
   function reproducirCuac(){
@@ -1419,6 +1430,7 @@
     avisarFisio('game_completed');
     enviarEstadoSesion();
     mostrarPantallaFinal('completo');
+    reproducirGrabado('ganador', 0.6);        // fanfarria al terminar toda la sesión
   }
 
   function calcularResultados(){
