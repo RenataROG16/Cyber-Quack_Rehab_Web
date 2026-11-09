@@ -254,15 +254,25 @@
       <div class="right-col">
         <div class="comment-box slim" id="boxSensor">
           <div class="slim-top">
-            <span class="slim-title" title="Cada sensor tiene un código único (QUACK-XXXX) que aparece en su pantalla de configuración y en su etiqueta">📡 Sensor del paciente</span>
+            <span class="slim-title" title="Tus sensores se registran una sola vez con su código (QUACK-XXXX). Aquí eliges cuál usa este paciente en esta sesión.">📡 Sensor de este paciente</span>
             <button class="pill" id="btnSensorDesvincular" style="display:none;">Desvincular</button>
           </div>
           <p id="sensorEstado" class="slim-note" style="font-size:11.5px;"></p>
-          <div class="slim-row" id="sensorFormulario">
-            <input type="text" id="sensorCodigoInput" placeholder="Código del sensor (QUACK-XXXX)" maxlength="14" autocomplete="off"
-                   style="flex:1; min-width:0; background:rgba(0,0,0,0.25); border:1px solid var(--panel-line); border-radius:6px; color:var(--ink); padding:6px 8px; font-size:12px; text-transform:uppercase;">
-            <button class="btn slim-add" id="btnSensorVincular" style="font-size:12px; padding:0 12px;">Vincular</button>
+          <div class="slim-row" id="sensorSeleccion">
+            <select id="sensorSelect" style="flex:1; min-width:0; background:rgba(0,0,0,0.25); border:1px solid var(--panel-line); border-radius:6px; color:var(--ink); padding:6px 8px; font-size:12px;"></select>
+            <button class="btn slim-add" id="btnSensorUsar" style="font-size:12px; padding:0 12px;">Usar</button>
+            <button class="pill" id="btnSensorEliminar" title="Quitar el sensor elegido de mi lista" style="padding:0 8px;">🗑</button>
           </div>
+          <details id="sensorNuevoDetalle" style="margin-top:6px;">
+            <summary class="slim-note" style="cursor:pointer; margin:0;">Registrar un sensor nuevo</summary>
+            <div class="slim-row" id="sensorFormulario" style="margin-top:4px; flex-wrap:wrap;">
+              <input type="text" id="sensorCodigoInput" placeholder="Código (QUACK-XXXX)" maxlength="14" autocomplete="off"
+                     style="flex:1; min-width:110px; background:rgba(0,0,0,0.25); border:1px solid var(--panel-line); border-radius:6px; color:var(--ink); padding:6px 8px; font-size:12px; text-transform:uppercase;">
+              <input type="text" id="sensorNombreInput" placeholder="Nombre (opcional)" maxlength="30" autocomplete="off"
+                     style="flex:1; min-width:110px; background:rgba(0,0,0,0.25); border:1px solid var(--panel-line); border-radius:6px; color:var(--ink); padding:6px 8px; font-size:12px;">
+              <button class="btn slim-add" id="btnSensorVincular" style="font-size:12px; padding:0 12px;">Registrar</button>
+            </div>
+          </details>
           <p id="sensorMensaje" class="slim-note" style="min-height:13px;"></p>
         </div>
 
@@ -1616,12 +1626,34 @@
   };
 
   // ============================================================
-  //  SENSOR ESP32 DEL PACIENTE: se vincula una vez con su código
+  //  SENSORES DEL FISIO: se registran una vez y, en cada sesión,
+  //  se elige cuál usa el paciente (un sensor = un paciente a la vez)
   // ============================================================
+  let misSensores = [];   // [{ code, name, patient_id }]  (solo los de este fisio)
+
   // Acepta "QUACK-7F3A", "quack7f3a" o solo "7f3a"
   function normalizarCodigoSensor(texto){
     const m = String(texto).trim().toUpperCase().replace(/\s+/g, '').match(/^(?:QUACK-?)?([0-9A-F]{4})$/);
     return m ? 'QUACK-' + m[1] : null;
+  }
+
+  function etiquetaSensor(s){ return s.name ? `${s.name} (${s.code})` : s.code; }
+
+  function nombrePaciente(id){
+    const p = (currentPatients || []).find(x => x.id === id);
+    return p ? p.full_name : 'otro paciente';
+  }
+
+  function sensorDeEstePaciente(){
+    return selectedPatient ? (misSensores.find(s => s.patient_id === selectedPatient.id) || null) : null;
+  }
+
+  function textoErrorSensor(error, accion){
+    const t = (error && error.message) || '';
+    if (error && (error.code === '42P01' || error.code === '42703' || error.code === 'PGRST202' || /does not exist|schema cache|Could not find/.test(t)))
+      return 'Falta correr el SQL de sensores (sql/01_sensores_por_fisio.sql) en Supabase.';
+    if (error && error.code === '42501') return 'Supabase no te dejó ' + accion + ' (permisos).';
+    return 'No se pudo ' + accion + ': ' + (t || (error && error.code) || 'error desconocido');
   }
 
   function escucharSensor(codigo){
@@ -1636,72 +1668,134 @@
   }
 
   function pintarSensor(){
-    const hayCodigo = !!sensorCodigoActual;
-    document.getElementById('sensorFormulario').style.display = hayCodigo ? 'none' : 'flex';
-    document.getElementById('btnSensorDesvincular').style.display = hayCodigo ? 'inline-block' : 'none';
+    const sel = document.getElementById('sensorSelect');
+    const valorPrevio = sel.value;
+    const actual = sensorDeEstePaciente();
+    sel.innerHTML = '';
+    sel.add(new Option(misSensores.length ? 'Elige un sensor…' : 'Aún no tienes sensores registrados', ''));
+    for (const s of misSensores){
+      let txt = etiquetaSensor(s);
+      if (actual && s.code === actual.code) txt += ' · asignado a este paciente';
+      else if (s.patient_id) txt += ' · en uso con ' + nombrePaciente(s.patient_id);
+      sel.add(new Option(txt, s.code));
+    }
+    if (actual) sel.value = actual.code;
+    else if (valorPrevio && misSensores.some(s => s.code === valorPrevio)) sel.value = valorPrevio;
+    document.getElementById('btnSensorDesvincular').style.display = actual ? 'inline-block' : 'none';
+    document.getElementById('btnSensorUsar').disabled = misSensores.length === 0;
+    document.getElementById('btnSensorEliminar').disabled = misSensores.length === 0;
+    document.getElementById('sensorNuevoDetalle').open = misSensores.length === 0;   // sin sensores: abre el formulario
     refrescarIndicadorSensor();
   }
 
   // Cada medio segundo revisa si está llegando señal del sensor
   function refrescarIndicadorSensor(){
     const el = document.getElementById('sensorEstado');
-    if (!sensorCodigoActual){ el.style.color = 'var(--ink-dim)'; el.textContent = 'Sin sensor vinculado. Escribe el código que muestra el sensor al configurarse.'; return; }
+    if (!sensorCodigoActual){ el.style.color = 'var(--ink-dim)'; el.textContent = 'Este paciente no tiene sensor asignado. Elige uno de tu lista o registra uno nuevo.'; return; }
     const recibiendo = Date.now() - ultimaSenalSensorTs < 2500;
     el.style.color = recibiendo ? '#9fe870' : 'var(--ink-dim)';
     const perdidos = procSensor.paquetesPerdidos ? ` (paquetes perdidos: ${procSensor.paquetesPerdidos})` : '';
     const fuente = procSensor.fuenteEnv === 'sensor' ? ' · envolvente del sensor'
                  : procSensor.fuenteEnv === 'sin envolvente' ? ' · ⚠ el sensor no manda envolvente (¿firmware viejo?)' : '';
-    el.textContent = recibiendo ? `● ${sensorCodigoActual} vinculado · recibiendo señal${fuente}${perdidos}`
-                                : `○ ${sensorCodigoActual} vinculado · sin señal (¿está encendido y con WiFi?)`;
+    el.textContent = recibiendo ? `● ${sensorCodigoActual} asignado · recibiendo señal${fuente}${perdidos}`
+                                : `○ ${sensorCodigoActual} asignado · sin señal (¿está encendido y con WiFi?)`;
   }
   setInterval(refrescarIndicadorSensor, 500);
 
+  // Lee la lista de sensores de este fisio. Devuelve el error (o null)
+  async function cargarMisSensores(){
+    const { data, error } = await supabaseClient.from('sensors').select('code, name, patient_id')
+      .eq('paired_by', currentUser.id).order('code');
+    if (error){ misSensores = []; return error; }
+    misSensores = data || [];
+    return null;
+  }
+
+  // Se llama al abrir un paciente: carga la lista y escucha el sensor que ya tenga asignado
   async function cargarSensor(patientId){
     const msg = document.getElementById('sensorMensaje'); msg.textContent = '';
     try {
-      const { data, error } = await supabaseClient.from('sensors').select('code').eq('patient_id', patientId).maybeSingle();
+      const error = await cargarMisSensores();
       if (error){
         escucharSensor(null); pintarSensor();
-        msg.style.color = '#ffb3b3';
-        msg.textContent = (error.code === '42P01' || /does not exist|schema cache/.test(error.message || ''))
-          ? 'Falta la tabla de sensores: corre el SQL de reparación.' : 'No se pudo leer el sensor: ' + (error.message || error.code);
+        msg.style.color = '#ffb3b3'; msg.textContent = textoErrorSensor(error, 'leer los sensores');
         return;
       }
-      escucharSensor(data ? data.code : null);
+      const actual = misSensores.find(s => s.patient_id === patientId);
+      escucharSensor(actual ? actual.code : null);
     } catch (e) { escucharSensor(null); }
     pintarSensor();
   }
 
-  document.getElementById('btnSensorVincular').onclick = async () => {
+  // Asigna un sensor a un paciente (o lo libera con null). Todo en una sola operación en Supabase
+  async function asignarSensor(codigo, pacienteId){
+    const { error } = await supabaseClient.rpc('asignar_sensor', { p_code: codigo, p_patient: pacienteId });
+    return error;
+  }
+
+  document.getElementById('btnSensorUsar').onclick = async () => {
     if (!selectedPatient) return;
+    const msg = document.getElementById('sensorMensaje');
+    msg.style.color = '#ffb3b3';
+    const codigo = document.getElementById('sensorSelect').value;
+    if (!codigo){ msg.textContent = 'Elige un sensor de la lista.'; return; }
+    const s = misSensores.find(x => x.code === codigo);
+    if (s && s.patient_id === selectedPatient.id){ msg.style.color = 'var(--ink-dim)'; msg.textContent = 'Ese sensor ya está asignado a este paciente.'; return; }
+    if (s && s.patient_id && !confirm(`El sensor ${etiquetaSensor(s)} está en uso con ${nombrePaciente(s.patient_id)}. ¿Pasarlo a ${selectedPatient.full_name}?`)) return;
+    msg.style.color = 'var(--ink-dim)'; msg.textContent = 'Asignando...';
+    const error = await asignarSensor(codigo, selectedPatient.id);
+    if (error){ msg.style.color = '#ffb3b3'; msg.textContent = textoErrorSensor(error, 'asignar el sensor'); return; }
+    await cargarSensor(selectedPatient.id);
+    msg.style.color = 'var(--duck-yellow)'; msg.textContent = `✓ ${codigo} asignado a ${selectedPatient.full_name}. Avisa al paciente que abra el juego después de este paso.`;
+  };
+
+  document.getElementById('btnSensorVincular').onclick = async () => {
     const msg = document.getElementById('sensorMensaje');
     msg.style.color = '#ffb3b3';
     const codigo = normalizarCodigoSensor(document.getElementById('sensorCodigoInput').value);
     if (!codigo){ msg.textContent = 'El código debe verse como QUACK-7F3A (4 letras o números al final).'; return; }
-    msg.style.color = 'var(--ink-dim)'; msg.textContent = 'Vinculando...';
-    const { error } = await supabaseClient.from('sensors').insert({ code: codigo, patient_id: selectedPatient.id, paired_by: currentUser.id });
+    const nombre = document.getElementById('sensorNombreInput').value.trim().slice(0, 30) || null;
+    msg.style.color = 'var(--ink-dim)'; msg.textContent = 'Registrando...';
+    const { error } = await supabaseClient.from('sensors').insert({ code: codigo, name: nombre, patient_id: null, paired_by: currentUser.id });
     if (error){
       msg.style.color = '#ffb3b3';
-      const t = (error.message || '');
-      if (error.code === '23505' && /patient_id/.test(t)) msg.textContent = 'Este paciente ya tiene un sensor vinculado. Desvincúlalo primero.';
-      else if (error.code === '23505') msg.textContent = 'Ese código ya está vinculado a otro paciente.';
-      else if (error.code === '42P01' || /does not exist|schema cache/.test(t)) msg.textContent = 'Falta la tabla de sensores: corre el SQL de reparación.';
-      else msg.textContent = 'No se pudo vincular: ' + (t || error.code);
+      msg.textContent = (error.code === '23505') ? 'Ese código ya está registrado (por ti o por otro fisioterapeuta).' : textoErrorSensor(error, 'registrar el sensor');
       return;
     }
     document.getElementById('sensorCodigoInput').value = '';
-    msg.style.color = 'var(--duck-yellow)'; msg.textContent = `✓ Vinculado: ${codigo}`;
-    escucharSensor(codigo); pintarSensor();
+    document.getElementById('sensorNombreInput').value = '';
+    const errLista = await cargarMisSensores();
+    pintarSensor();
+    document.getElementById('sensorSelect').value = codigo;   // lo deja elegido: falta presionar "Usar"
+    document.getElementById('sensorNuevoDetalle').open = false;
+    msg.style.color = errLista ? '#ffb3b3' : 'var(--duck-yellow)';
+    msg.textContent = errLista ? textoErrorSensor(errLista, 'leer los sensores') : `✓ Registrado: ${codigo}. Presiona "Usar" para asignarlo a este paciente.`;
   };
 
+  // Desvincular: el sensor se queda en tu lista, solo deja de estar con este paciente
   document.getElementById('btnSensorDesvincular').onclick = async () => {
-    if (!selectedPatient || !sensorCodigoActual) return;
-    if (!confirm(`¿Desvincular el sensor ${sensorCodigoActual} de este paciente?`)) return;
+    const actual = sensorDeEstePaciente();
+    if (!selectedPatient || !actual) return;
+    if (!confirm(`¿Quitar el sensor ${etiquetaSensor(actual)} de este paciente? Seguirá en tu lista.`)) return;
     const msg = document.getElementById('sensorMensaje');
-    const { error } = await supabaseClient.from('sensors').delete().eq('patient_id', selectedPatient.id);
-    if (error){ msg.style.color = '#ffb3b3'; msg.textContent = 'No se pudo desvincular: ' + (error.message || error.code); return; }
-    escucharSensor(null); pintarSensor();
-    msg.style.color = 'var(--ink-dim)'; msg.textContent = 'Sensor desvinculado.';
+    const error = await asignarSensor(actual.code, null);
+    if (error){ msg.style.color = '#ffb3b3'; msg.textContent = textoErrorSensor(error, 'desvincular el sensor'); return; }
+    await cargarSensor(selectedPatient.id);
+    msg.style.color = 'var(--ink-dim)'; msg.textContent = 'Sensor desvinculado de este paciente (sigue en tu lista).';
+  };
+
+  // 🗑: borra el sensor elegido de tu lista (para códigos mal escritos o sensores que ya no usas)
+  document.getElementById('btnSensorEliminar').onclick = async () => {
+    const msg = document.getElementById('sensorMensaje');
+    const codigo = document.getElementById('sensorSelect').value;
+    if (!codigo){ msg.style.color = '#ffb3b3'; msg.textContent = 'Elige primero el sensor que quieres quitar de tu lista.'; return; }
+    const s = misSensores.find(x => x.code === codigo);
+    const uso = (s && s.patient_id) ? ` Ahora está en uso con ${nombrePaciente(s.patient_id)}.` : '';
+    if (!confirm(`¿Quitar ${s ? etiquetaSensor(s) : codigo} de tu lista?${uso}`)) return;
+    const { error } = await supabaseClient.from('sensors').delete().eq('code', codigo).eq('paired_by', currentUser.id);
+    if (error){ msg.style.color = '#ffb3b3'; msg.textContent = textoErrorSensor(error, 'quitar el sensor'); return; }
+    await cargarSensor(selectedPatient ? selectedPatient.id : null);
+    msg.style.color = 'var(--ink-dim)'; msg.textContent = `Sensor ${codigo} quitado de tu lista.`;
   };
 
   document.getElementById('btnExitSession').onclick = async () => {
