@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Cyber Quack Rehab</title>
+<!-- Librería oficial de Supabase, cargada desde CDN -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="css/estilos.css" />
+<style>
+  .brand-title, .about-brand{ display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; }
+  .brand-duck{ width: 34px; height: 38px; object-fit: contain; vertical-align: middle; }
+  .brand-duck-fallback{ font-size: .9em; }
+  .logo .brand-duck-fallback{ font-size: 1em; }
+</style>
+<!-- PWA: app instalable -->
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#0b3d4a" />
+<link rel="icon" type="image/png" href="icons/icon-192.png" />
+<link rel="apple-touch-icon" href="icons/icon-180.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-title" content="Quack Rehab" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<style>
+  /* Aviso para instalar la app */
+  .install-banner{ position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%);
+    width: min(440px, calc(100% - 24px)); display: none; align-items: center; gap: 12px; padding: 12px 14px;
+    background: var(--panel, #0e4a57); border: 1px solid var(--panel-line, #1d6476); border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.35); color: var(--ink, #eafbfa); z-index: 9999; font-family: var(--sans, sans-serif); }
+  .install-banner.show{ display: flex; animation: subirBanner .35s ease-out; }
+  .install-banner img{ width: 44px; height: 44px; border-radius: 10px; flex-shrink: 0; }
+  .install-banner .ib-text{ flex: 1; font-size: .9rem; line-height: 1.3; }
+  .install-banner .ib-text strong{ display: block; font-size: 1rem; }
+  .install-banner .ib-btn{ background: var(--duck-yellow, #ffcd3c); color: #0b3d4a; border: 0; border-radius: 10px;
+    padding: 9px 14px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+  .install-banner .ib-close{ background: none; border: 0; color: var(--ink-dim, #9fd3d6); font-size: 1.1rem; cursor: pointer; padding: 4px; }
+  @keyframes subirBanner{ from{ opacity: 0; transform: translate(-50%, 20px); } to{ opacity: 1; transform: translate(-50%, 0); } }
+</style>
+</head>
+<body>
+
+  <button id="btnAcercaDe" class="tab-info">ℹ️ Acerca del proyecto</button>
+
+  <div id="modalAcercaDe" class="modal-overlay">
+    <div class="modal-box">
+      <button id="btnCerrarModal" class="modal-close">✕</button>
+      <h2 class="about-brand"><img class="brand-duck" src="patient/assets/pato-reposo.svg" alt="" aria-hidden="true" onerror="this.hidden=true; this.nextElementSibling.hidden=false"><span class="brand-duck-fallback" hidden>🦆</span> Cyber Quack Rehab</h2>
+
+      <h3>Problemática</h3>
+      <p>La escasez de dispositivos EMG accesibles para monitorear el progreso en fisioterapia.</p>
+
+      <h3>Solución</h3>
+      <p>Una plataforma que motiva a los pacientes a asistir a sus sesiones a través de un juego, ayudándolos a mantenerse comprometidos y a seguir su propio progreso. Al mismo tiempo, los fisioterapeutas tienen acceso a datos en tiempo real para verificar que los ejercicios se realicen correctamente y dar retroalimentación al paciente.</p>
+
+      <h3>Músculo seleccionado</h3>
+      <p>Isquiotibiales (hamstrings)</p>
+
+      <h3>¿Quiénes somos?</h3>
+      <p>Un proyecto universitario que combina hardware hecho a mano (sensor sEMG con ESP32) con una plataforma web, pensado para hacer la rehabilitación física más motivadora y medible.</p>
+    </div>
+  </div>
+
+  <div class="login-box">
+    <div class="logo">
+      <h1 class="brand-title"><img class="brand-duck" src="patient/assets/pato-reposo.svg" alt="" aria-hidden="true" onerror="this.hidden=true; this.nextElementSibling.hidden=false"><span class="brand-duck-fallback" hidden>🦆</span> Cyber Quack Rehab</h1>
+      <span>Plataforma de rehabilitación con sEMG</span>
+    </div>
+
+    <div class="role-switch">
+      <button id="btnRolPhysio" class="active">Fisioterapeuta</button>
+      <button id="btnRolPatient">Paciente</button>
+    </div>
+
+    <div class="mode-switch">
+      <button id="btnModoLogin" class="active">Iniciar sesión</button>
+      <button id="btnModoRegistro">Registrarme</button>
+    </div>
+
+    <form id="formAuth">
+      <input type="text" id="fullName" placeholder="Nombre completo" style="display:none;" />
+      <input type="email" id="email" placeholder="Correo" required />
+      <input type="password" id="password" placeholder="Contraseña" required />
+      <input type="text" id="codigoFisio" placeholder="Código de tu fisioterapeuta" style="display:none;" />
+      <div class="login-error" id="loginError"></div>
+      <button type="submit" class="btn primary">Continuar</button>
+    </form>
+  </div>
+
+<script src="js/supabaseClient.js"></script>
+<script src="js/auth.js"></script>
+<script>
+  let rolActual = 'physio';
+  let modoActual = 'login';
+
+  const btnRolPhysio = document.getElementById('btnRolPhysio');
+  const btnRolPatient = document.getElementById('btnRolPatient');
+  const btnModoLogin = document.getElementById('btnModoLogin');
+  const btnModoRegistro = document.getElementById('btnModoRegistro');
+  const fullNameInput = document.getElementById('fullName');
+  const codigoFisioInput = document.getElementById('codigoFisio');
+
+  function actualizarFormulario(){
+    fullNameInput.style.display = modoActual === 'registro' ? 'block' : 'none';
+    codigoFisioInput.style.display = (modoActual === 'registro' && rolActual === 'patient') ? 'block' : 'none';
+  }
+
+  btnRolPhysio.onclick = () => { rolActual = 'physio'; btnRolPhysio.classList.add('active'); btnRolPatient.classList.remove('active'); actualizarFormulario(); };
+  btnRolPatient.onclick = () => { rolActual = 'patient'; btnRolPatient.classList.add('active'); btnRolPhysio.classList.remove('active'); actualizarFormulario(); };
+  btnModoLogin.onclick = () => { modoActual = 'login'; btnModoLogin.classList.add('active'); btnModoRegistro.classList.remove('active'); actualizarFormulario(); };
+  btnModoRegistro.onclick = () => { modoActual = 'registro'; btnModoRegistro.classList.add('active'); btnModoLogin.classList.remove('active'); actualizarFormulario(); };
+
+  document.getElementById('formAuth').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+
+    if (modoActual === 'login'){
+      await iniciarSesion(email, password, rolActual);
+    } else {
+      const fullName = fullNameInput.value;
+      const codigo = codigoFisioInput.value;
+      await registrarUsuario(email, password, fullName, rolActual, codigo);
+    }
+  });
+
+  actualizarFormulario();
+
+  // --- Modal "Acerca del proyecto" ---
+  const modal = document.getElementById('modalAcercaDe');
+  document.getElementById('btnAcercaDe').onclick = () => modal.classList.add('show');
+  document.getElementById('btnCerrarModal').onclick = () => modal.classList.remove('show');
+  modal.addEventListener('click', (e) => { if (e.target === modal) modal.classList.remove('show'); });
+</script>
+
+<!-- Aviso para instalar la app -->
+<div id="installBanner" class="install-banner" role="dialog" aria-label="Instalar app">
+  <img src="icons/icon-192.png" alt="">
+  <div class="ib-text">
+    <strong>Instala Cyber Quack Rehab</strong>
+    <span id="ibMensaje">Ábrela como app desde tu escritorio o celular.</span>
+  </div>
+  <button id="ibInstalar" class="ib-btn">Instalar</button>
+  <button id="ibCerrar" class="ib-close" aria-label="Cerrar">✕</button>
+</div>
+<script>
+  (function(){
+    const banner = document.getElementById('installBanner');
+    const btnInstalar = document.getElementById('ibInstalar');
+    const mensaje = document.getElementById('ibMensaje');
+    let eventoInstalar = null;
+
+    // Si ya está abierta como app instalada, no mostramos nada
+    const yaInstalada = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    if (yaInstalada) return;
+
+    // Si la persona cerró el aviso, no lo volvemos a mostrar en 3 días
+    let cerradoHasta = 0;
+    try { cerradoHasta = Number(localStorage.getItem('installBannerCerrado') || 0); } catch(e){}
+    if (Date.now() < cerradoHasta) return;
+
+    // Chrome, Edge y Android: el navegador nos avisa que se puede instalar
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      eventoInstalar = e;
+      banner.classList.add('show');
+    });
+
+    btnInstalar.onclick = async () => {
+      if (!eventoInstalar) return;
+      eventoInstalar.prompt();
+      await eventoInstalar.userChoice;
+      eventoInstalar = null;
+      banner.classList.remove('show');
+    };
+
+    window.addEventListener('appinstalled', () => banner.classList.remove('show'));
+
+    // iPhone / iPad: Safari no tiene botón de instalar, así que damos instrucciones
+    const esIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) ||
+                  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    if (esIOS) {
+      mensaje.innerHTML = 'Toca <b>Compartir</b> ⬆️ y luego <b>“Agregar a pantalla de inicio”</b>.';
+      btnInstalar.style.display = 'none';
+      setTimeout(() => banner.classList.add('show'), 1500);
+    }
+
+    document.getElementById('ibCerrar').onclick = () => {
+      banner.classList.remove('show');
+      try { localStorage.setItem('installBannerCerrado', String(Date.now() + 3*24*60*60*1000)); } catch(e){}
+    };
+  })();
+</script>
+<!-- PWA: registrar service worker -->
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => navigator.serviceWorker.register('sw.js'));
+  }
+</script>
+</body>
+</html>
